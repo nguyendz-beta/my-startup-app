@@ -1,0 +1,81 @@
+import { useState } from 'react'
+import { useNavigate, Link } from 'react-router-dom'
+import { authApi } from '../../api/authApi'
+import { useAuthStore } from '../../store/authStore'
+
+export default function Register() {
+  const navigate = useNavigate()
+  const setAuth = useAuthStore((s) => s.setAuth)
+  const [form, setForm] = useState({
+    tenantName: '', tenantSlug: '', ownerName: '', email: '', password: '', phone: ''
+  })
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    setLoading(true)
+    try {
+      const res = await authApi.register(form)
+      const { token, user } = res.data.data
+      setAuth(token, user)
+      navigate('/dashboard')
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Đăng ký thất bại')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="w-full max-w-md">
+      <div className="bg-white rounded-2xl shadow-xl p-8">
+        <div className="text-center mb-6">
+          <div className="text-4xl mb-3">🏪</div>
+          <h1 className="text-2xl font-bold text-gray-800">Tạo tài khoản</h1>
+          <p className="text-gray-500 text-sm mt-1">Bắt đầu quản lý quán của bạn</p>
+        </div>
+
+        {error && (
+          <div className="bg-red-50 text-red-600 text-sm px-4 py-3 rounded-lg mb-4">{error}</div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-3">
+          {[
+            { key: 'tenantName', label: 'Tên quán', placeholder: 'Cafe Sài Gòn' },
+            { key: 'tenantSlug', label: 'Tên miền (không dấu)', placeholder: 'cafe-sai-gon' },
+            { key: 'ownerName', label: 'Họ tên chủ quán', placeholder: 'Nguyễn Văn A' },
+            { key: 'email', label: 'Email', placeholder: 'owner@cafe.vn' },
+            { key: 'password', label: 'Mật khẩu', placeholder: '••••••••' },
+            { key: 'phone', label: 'Số điện thoại', placeholder: '0901234567' },
+          ].map((field) => (
+            <div key={field.key}>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{field.label}</label>
+              <input
+                type={field.key === 'password' ? 'password' : 'text'}
+                value={(form as any)[field.key]}
+                onChange={(e) => setForm({ ...form, [field.key]: e.target.value })}
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm"
+                placeholder={field.placeholder}
+                required={field.key !== 'phone'}
+              />
+            </div>
+          ))}
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-2.5 rounded-lg transition-colors disabled:opacity-50 mt-2"
+          >
+            {loading ? 'Đang tạo...' : 'Tạo tài khoản'}
+          </button>
+        </form>
+
+        <p className="text-center text-sm text-gray-500 mt-4">
+          Đã có tài khoản?{' '}
+          <Link to="/login" className="text-orange-500 font-medium hover:underline">Đăng nhập</Link>
+        </p>
+      </div>
+    </div>
+  )
+}

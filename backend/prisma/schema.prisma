@@ -1,0 +1,407 @@
+// ============================================================
+// schema.prisma — F&B SaaS Multi-Tenant Platform
+// Database: MySQL
+// ORM: Prisma
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// ENUMS
+// ============================================================
+
+enum PlanType {
+  FREE
+  BASIC
+  PRO
+  ENTERPRISE
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  OWNER
+  MANAGER
+  CASHIER
+  KITCHEN
+  WAITER
+}
+
+enum TableStatus {
+  AVAILABLE
+  OCCUPIED
+  RESERVED
+  CLEANING
+}
+
+enum OrderSource {
+  DINE_IN
+  QR_ORDER
+  TAKEAWAY
+  DELIVERY
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PREPARING
+  READY
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  REFUNDED
+  FAILED
+}
+
+enum PaymentMethodType {
+  CASH
+  CARD
+  QR_CODE
+  TRANSFER
+}
+
+enum InventoryReason {
+  PURCHASE
+  SALE
+  ADJUSTMENT
+  WASTE
+  TRANSFER
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED_AMOUNT
+}
+
+// ============================================================
+// MULTI-TENANT FOUNDATION
+// ============================================================
+
+model Tenant {
+  id          String    @id @default(uuid())
+  name        String
+  slug        String    @unique
+  logoUrl     String?
+  planType    PlanType  @default(FREE)
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  plans           TenantPlan[]
+  branches        Branch[]
+  users           User[]
+  categories      Category[]
+  products        Product[]
+  paymentMethods  PaymentMethod[]
+  discounts       Discount[]
+
+  @@map("tenants")
+}
+
+model TenantPlan {
+  id           String    @id @default(uuid())
+  tenantId     String
+  planName     String
+  maxBranches  Int       @default(1)
+  maxUsers     Int       @default(5)
+  maxProducts  Int       @default(100)
+  startsAt     DateTime  @default(now())
+  expiresAt    DateTime?
+  createdAt    DateTime  @default(now())
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("tenant_plans")
+}
+
+// ============================================================
+// BRANCH & STAFF
+// ============================================================
+
+model Branch {
+  id        String   @id @default(uuid())
+  tenantId  String
+  name      String
+  address   String?
+  phone     String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  users          User[]
+  tables         Table[]
+  orders         Order[]
+  inventoryLogs  InventoryLog[]
+  shiftReports   ShiftReport[]
+
+  @@map("branches")
+}
+
+model User {
+  id           String    @id @default(uuid())
+  tenantId     String
+  branchId     String?
+  name         String
+  email        String    @unique
+  passwordHash String
+  phone        String?
+  role         UserRole  @default(CASHIER)
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch  Branch?  @relation(fields: [branchId], references: [id])
+  orders  Order[]
+
+  @@map("users")
+}
+
+// ============================================================
+// TABLE MANAGEMENT
+// ============================================================
+
+model Table {
+  id        String      @id @default(uuid())
+  branchId  String
+  name      String
+  capacity  Int         @default(4)
+  status    TableStatus @default(AVAILABLE)
+  qrCode    String?     @unique
+  floorMap  String?     @db.Text
+  isActive  Boolean     @default(true)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  branch  Branch  @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  orders  Order[]
+
+  @@map("tables")
+}
+
+// ============================================================
+// MENU
+// ============================================================
+
+model Category {
+  id           String   @id @default(uuid())
+  tenantId     String
+  name         String
+  imageUrl     String?
+  displayOrder Int      @default(0)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  products  Product[]
+
+  @@map("categories")
+}
+
+model Product {
+  id            String   @id @default(uuid())
+  tenantId      String
+  categoryId    String?
+  name          String
+  description   String?  @db.Text
+  basePrice     Int                // VNĐ — dùng Int, không cần thập phân
+  imageUrl      String?
+  stockQuantity Int      @default(0)   // -1 = không giới hạn
+  isAvailable   Boolean  @default(true)
+  displayOrder  Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  tenant        Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  category      Category?        @relation(fields: [categoryId], references: [id])
+  variants      ProductVariant[]
+  orderItems    OrderItem[]
+  inventoryLogs InventoryLog[]
+
+  @@map("products")
+}
+
+model ProductVariant {
+  id            String   @id @default(uuid())
+  productId     String
+  name          String
+  priceModifier Int      @default(0)   // Cộng thêm vào basePrice, có thể âm
+  isAvailable   Boolean  @default(true)
+  createdAt     DateTime @default(now())
+
+  product     Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  orderItems  OrderItem[]
+
+  @@map("product_variants")
+}
+
+// ============================================================
+// ORDER FLOW
+// ============================================================
+
+model Order {
+  id          String      @id @default(uuid())
+  branchId    String
+  tableId     String?
+  cashierId   String?
+  discountId  String?
+  orderCode   String      @unique
+  source      OrderSource @default(DINE_IN)
+  status      OrderStatus @default(PENDING)
+  note        String?     @db.Text
+  subtotal    Int                        // VNĐ
+  discount    Int         @default(0)   // VNĐ
+  tax         Int         @default(0)   // VNĐ
+  total       Int                        // VNĐ
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  completedAt DateTime?
+
+  branch    Branch     @relation(fields: [branchId], references: [id])
+  table     Table?     @relation(fields: [tableId], references: [id])
+  cashier   User?      @relation(fields: [cashierId], references: [id])
+  discountR Discount?  @relation(fields: [discountId], references: [id])
+  items     OrderItem[]
+  payment   Payment?
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id         String   @id @default(uuid())
+  orderId    String
+  productId  String
+  variantId  String?
+  quantity   Int
+  unitPrice  Int                // Snapshot giá lúc order
+  subtotal   Int
+  note       String?
+  createdAt  DateTime @default(now())
+
+  order    Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product  Product         @relation(fields: [productId], references: [id])
+  variant  ProductVariant? @relation(fields: [variantId], references: [id])
+
+  @@map("order_items")
+}
+
+// ============================================================
+// PAYMENT
+// ============================================================
+
+model PaymentMethod {
+  id        String            @id @default(uuid())
+  tenantId  String
+  name      String
+  type      PaymentMethodType
+  config    Json?
+  isActive  Boolean           @default(true)
+  createdAt DateTime          @default(now())
+
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  payments  Payment[]
+
+  @@map("payment_methods")
+}
+
+model Payment {
+  id            String        @id @default(uuid())
+  orderId       String        @unique
+  methodId      String
+  amount        Int
+  status        PaymentStatus @default(PENDING)
+  referenceCode String?
+  metadata      Json?
+  paidAt        DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  order   Order         @relation(fields: [orderId], references: [id])
+  method  PaymentMethod @relation(fields: [methodId], references: [id])
+
+  @@map("payments")
+}
+
+// ============================================================
+// DISCOUNT / PROMOTION
+// ============================================================
+
+model Discount {
+  id            String       @id @default(uuid())
+  tenantId      String
+  code          String
+  description   String?
+  type          DiscountType
+  value         Int                   // % hoặc VNĐ tùy type
+  minOrderValue Int?
+  maxUses       Int?
+  usedCount     Int          @default(0)
+  isActive      Boolean      @default(true)
+  startsAt      DateTime?
+  expiresAt     DateTime?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  orders  Order[]
+
+  @@unique([tenantId, code])
+  @@map("discounts")
+}
+
+// ============================================================
+// INVENTORY
+// ============================================================
+
+model InventoryLog {
+  id             String          @id @default(uuid())
+  productId      String
+  branchId       String
+  quantityChange Int
+  quantityBefore Int
+  quantityAfter  Int
+  reason         InventoryReason
+  note           String?
+  createdBy      String?
+  createdAt      DateTime        @default(now())
+
+  product  Product  @relation(fields: [productId], references: [id])
+  branch   Branch   @relation(fields: [branchId], references: [id])
+
+  @@map("inventory_logs")
+}
+
+// ============================================================
+// SHIFT REPORT
+// ============================================================
+
+model ShiftReport {
+  id            String    @id @default(uuid())
+  branchId      String
+  openedBy      String
+  closedBy      String?
+  openingCash   Int
+  closingCash   Int?
+  totalRevenue  Int?
+  totalOrders   Int?
+  note          String?   @db.Text
+  openedAt      DateTime  @default(now())
+  closedAt      DateTime?
+
+  branch  Branch  @relation(fields: [branchId], references: [id])
+
+  @@map("shift_reports")
+}
