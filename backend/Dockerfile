@@ -7,6 +7,8 @@ RUN npm install
 
 COPY . .
 
+RUN npm run build
+
 EXPOSE 4000
 
-CMD ["npx", "ts-node", "-r", "tsconfig-paths/register", "src/server.ts"]
+CMD ["node", "dist/server.js"]
