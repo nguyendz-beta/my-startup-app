@@ -7,7 +7,6 @@ interface Variant {
   name: string;
   priceModifier: number;
 }
-
 interface Product {
   id: string;
   name: string;
@@ -18,7 +17,6 @@ interface Product {
   category: { id: string; name: string } | null;
   variants: Variant[];
 }
-
 interface Category {
   id: string;
   name: string;
@@ -33,7 +31,6 @@ export default function MenuPage() {
   const [saving, setSaving] = useState(false);
   const [selected, setSelected] = useState<Product | null>(null);
   const [search, setSearch] = useState('');
-
   const [form, setForm] = useState({
     name: '',
     basePrice: '',
@@ -41,7 +38,6 @@ export default function MenuPage() {
     categoryId: '',
     imageUrl: '',
   });
-
   const [variantForm, setVariantForm] = useState({ name: '', priceModifier: '0' });
   const [addingVariant, setAddingVariant] = useState(false);
   const [editingVariant, setEditingVariant] = useState<Variant | null>(null);
@@ -54,13 +50,9 @@ export default function MenuPage() {
       .finally(() => setLoading(false));
   };
 
-  const loadCategories = () => {
-    productApi.getCategories().then((r) => setCategories(r.data.data));
-  };
-
   useEffect(() => {
     loadProducts();
-    loadCategories();
+    productApi.getCategories().then((r) => setCategories(r.data.data));
   }, []);
 
   const openCreate = () => {
@@ -96,16 +88,16 @@ export default function MenuPage() {
       };
       if (editing) {
         await productApi.updateProduct(editing.id, payload);
-        toast.success('Cập nhật sản phẩm thành công!');
+        toast.success('Cap nhat san pham thanh cong!');
       } else {
         await productApi.createProduct(payload);
-        toast.success('Thêm sản phẩm thành công!');
+        toast.success('Them san pham thanh cong!');
       }
       setShowForm(false);
       setEditing(null);
       loadProducts();
     } catch (e: any) {
-      toast.error(e.response?.data?.message || 'Lỗi lưu sản phẩm');
+      toast.error(e.response?.data?.message || 'Loi luu san pham');
     } finally {
       setSaving(false);
     }
@@ -113,17 +105,16 @@ export default function MenuPage() {
 
   const handleToggle = async (product: Product) => {
     await productApi.updateProduct(product.id, { isAvailable: !product.isAvailable });
-    toast.success(product.isAvailable ? 'Đã tắt sản phẩm' : 'Đã bật sản phẩm');
+    toast.success(product.isAvailable ? 'Da tat san pham' : 'Da bat san pham');
     loadProducts();
-    if (selected?.id === product.id) {
+    if (selected?.id === product.id)
       setSelected({ ...selected, isAvailable: !product.isAvailable });
-    }
   };
 
   const handleDelete = async (product: Product) => {
-    if (!confirm(`Xoá "${product.name}"?`)) return;
+    if (!confirm('Xoa "' + product.name + '"?')) return;
     await productApi.deleteProduct(product.id);
-    toast.success('Đã xoá sản phẩm');
+    toast.success('Da xoa san pham');
     setSelected(null);
     loadProducts();
   };
@@ -137,14 +128,14 @@ export default function MenuPage() {
         name: variantForm.name,
         priceModifier: parseInt(variantForm.priceModifier) || 0,
       });
-      toast.success('Thêm size thành công!');
+      toast.success('Them size thanh cong!');
       setVariantForm({ name: '', priceModifier: '0' });
       setAddingVariant(false);
       const r = await productApi.getProductById(selected.id);
       setSelected(r.data.data);
       loadProducts();
     } catch (e: any) {
-      toast.error(e.response?.data?.message || 'Lỗi thêm size');
+      toast.error(e.response?.data?.message || 'Loi them size');
     } finally {
       setSaving(false);
     }
@@ -159,7 +150,7 @@ export default function MenuPage() {
         name: editVariantForm.name,
         priceModifier: parseInt(editVariantForm.priceModifier) || 0,
       });
-      toast.success('Cập nhật size thành công!');
+      toast.success('Cap nhat size thanh cong!');
       setEditingVariant(null);
       if (selected) {
         const r = await productApi.getProductById(selected.id);
@@ -167,16 +158,16 @@ export default function MenuPage() {
       }
       loadProducts();
     } catch (e: any) {
-      toast.error(e.response?.data?.message || 'Lỗi sửa size');
+      toast.error(e.response?.data?.message || 'Loi sua size');
     } finally {
       setSaving(false);
     }
   };
 
   const handleDeleteVariant = async (variantId: string) => {
-    if (!confirm('Xoá size này?')) return;
+    if (!confirm('Xoa size nay?')) return;
     await productApi.deleteVariant(variantId);
-    toast.success('Đã xoá size');
+    toast.success('Da xoa size');
     if (selected) {
       const r = await productApi.getProductById(selected.id);
       setSelected(r.data.data);
@@ -184,105 +175,226 @@ export default function MenuPage() {
     loadProducts();
   };
 
-  const fmt = (n: number) => new Intl.NumberFormat('vi-VN').format(n) + 'đ';
-
+  const fmt = (n: number) => new Intl.NumberFormat('vi-VN').format(n) + 'd';
   const filtered = products.filter((p) => p.name.toLowerCase().includes(search.toLowerCase()));
 
   return (
-    <div className="flex gap-4 h-full">
-      {/* Danh sách sản phẩm */}
-      <div className="flex-1 space-y-4 overflow-auto">
-        <div className="flex items-center justify-between">
+    <div style={{ display: 'flex', gap: '16px', height: '100%' }}>
+      <div style={{ flex: 1, overflowY: 'auto' }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '16px',
+          }}
+        >
           <div>
-            <h1 className="text-2xl font-bold text-gray-800">Thực đơn</h1>
-            <p className="text-gray-500 text-sm mt-1">{products.length} sản phẩm</p>
+            <h1 style={{ fontSize: '24px', fontWeight: 'bold', color: '#1f2937' }}>Thuc don</h1>
+            <p style={{ color: '#6b7280', fontSize: '14px' }}>{products.length} san pham</p>
           </div>
           <button
             onClick={openCreate}
-            className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-medium"
+            style={{
+              background: '#f97316',
+              color: 'white',
+              padding: '8px 16px',
+              borderRadius: '8px',
+              border: 'none',
+              cursor: 'pointer',
+              fontWeight: '500',
+            }}
           >
-            + Thêm sản phẩm
+            + Them san pham
           </button>
         </div>
 
-        {/* Search */}
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
-          placeholder="🔍 Tìm sản phẩm..."
+          style={{
+            width: '100%',
+            padding: '10px 16px',
+            border: '1px solid #e5e7eb',
+            borderRadius: '12px',
+            fontSize: '14px',
+            marginBottom: '16px',
+            boxSizing: 'border-box',
+          }}
+          placeholder="Tim san pham..."
         />
 
-        {/* Form thêm/sửa */}
         {showForm && (
-          <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
-            <h2 className="font-semibold text-gray-700 mb-4">
-              {editing ? '✏️ Sửa sản phẩm' : '+ Thêm sản phẩm mới'}
+          <div
+            style={{
+              background: 'white',
+              borderRadius: '12px',
+              padding: '20px',
+              marginBottom: '16px',
+              border: '1px solid #f3f4f6',
+            }}
+          >
+            <h2 style={{ fontWeight: '600', color: '#374151', marginBottom: '16px' }}>
+              {editing ? 'Sua san pham' : 'Them san pham moi'}
             </h2>
-            <form onSubmit={handleSave} className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Tên sản phẩm *
-                </label>
-                <input
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
-                  placeholder="Cà phê sữa đá"
-                  required
-                />
+            <form onSubmit={handleSave}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label
+                    style={{
+                      display: 'block',
+                      fontSize: '14px',
+                      fontWeight: '500',
+                      color: '#374151',
+                      marginBottom: '4px',
+                    }}
+                  >
+                    Ten san pham *
+                  </label>
+                  <input
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      boxSizing: 'border-box',
+                    }}
+                    placeholder="Ca phe sua da"
+                    required
+                  />
+                </div>
+                <div>
+                  <label
+                    style={{
+                      display: 'block',
+                      fontSize: '14px',
+                      fontWeight: '500',
+                      color: '#374151',
+                      marginBottom: '4px',
+                    }}
+                  >
+                    Gia (VND) *
+                  </label>
+                  <input
+                    type="number"
+                    value={form.basePrice}
+                    onChange={(e) => setForm({ ...form, basePrice: e.target.value })}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      boxSizing: 'border-box',
+                    }}
+                    placeholder="35000"
+                    required
+                  />
+                </div>
+                <div>
+                  <label
+                    style={{
+                      display: 'block',
+                      fontSize: '14px',
+                      fontWeight: '500',
+                      color: '#374151',
+                      marginBottom: '4px',
+                    }}
+                  >
+                    Danh muc
+                  </label>
+                  <select
+                    value={form.categoryId}
+                    onChange={(e) => setForm({ ...form, categoryId: e.target.value })}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      boxSizing: 'border-box',
+                    }}
+                  >
+                    <option value="">-- Chon danh muc --</option>
+                    {categories.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label
+                    style={{
+                      display: 'block',
+                      fontSize: '14px',
+                      fontWeight: '500',
+                      color: '#374151',
+                      marginBottom: '4px',
+                    }}
+                  >
+                    Link anh
+                  </label>
+                  <input
+                    value={form.imageUrl}
+                    onChange={(e) => setForm({ ...form, imageUrl: e.target.value })}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      boxSizing: 'border-box',
+                    }}
+                    placeholder="https://..."
+                  />
+                </div>
+                <div style={{ gridColumn: 'span 2' }}>
+                  <label
+                    style={{
+                      display: 'block',
+                      fontSize: '14px',
+                      fontWeight: '500',
+                      color: '#374151',
+                      marginBottom: '4px',
+                    }}
+                  >
+                    Mo ta
+                  </label>
+                  <input
+                    value={form.description}
+                    onChange={(e) => setForm({ ...form, description: e.target.value })}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      boxSizing: 'border-box',
+                    }}
+                    placeholder="Mo ta ngan"
+                  />
+                </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Giá (VNĐ) *</label>
-                <input
-                  type="number"
-                  value={form.basePrice}
-                  onChange={(e) => setForm({ ...form, basePrice: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
-                  placeholder="35000"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Danh mục</label>
-                <select
-                  value={form.categoryId}
-                  onChange={(e) => setForm({ ...form, categoryId: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
-                >
-                  <option value="">-- Chọn danh mục --</option>
-                  {categories.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Link ảnh</label>
-                <input
-                  value={form.imageUrl}
-                  onChange={(e) => setForm({ ...form, imageUrl: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
-                  placeholder="https://..."
-                />
-              </div>
-              <div className="col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Mô tả</label>
-                <input
-                  value={form.description}
-                  onChange={(e) => setForm({ ...form, description: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
-                  placeholder="Mô tả ngắn về sản phẩm"
-                />
-              </div>
-              <div className="col-span-2 flex gap-2">
+              <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="bg-orange-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-orange-600 disabled:opacity-50"
+                  style={{
+                    background: '#f97316',
+                    color: 'white',
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontWeight: '500',
+                    opacity: saving ? 0.5 : 1,
+                  }}
                 >
-                  {saving ? 'Đang lưu...' : editing ? 'Cập nhật' : 'Lưu sản phẩm'}
+                  {saving ? 'Dang luu...' : editing ? 'Cap nhat' : 'Luu san pham'}
                 </button>
                 <button
                   type="button"
@@ -290,72 +402,132 @@ export default function MenuPage() {
                     setShowForm(false);
                     setEditing(null);
                   }}
-                  className="bg-gray-100 text-gray-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-200"
+                  style={{
+                    background: '#f3f4f6',
+                    color: '#4b5563',
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontWeight: '500',
+                  }}
                 >
-                  Huỷ
+                  Huy
                 </button>
               </div>
             </form>
           </div>
         )}
 
-        {/* Table */}
         {loading ? (
-          <div className="text-center text-gray-400 py-12">Đang tải...</div>
+          <div style={{ textAlign: 'center', color: '#9ca3af', padding: '48px' }}>Dang tai...</div>
         ) : (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-100">
+          <div
+            style={{
+              background: 'white',
+              borderRadius: '12px',
+              border: '1px solid #f3f4f6',
+              overflow: 'hidden',
+            }}
+          >
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead style={{ background: '#f9fafb' }}>
                 <tr>
-                  {['Sản phẩm', 'Danh mục', 'Giá', 'Size', 'Trạng thái', ''].map((h) => (
-                    <th key={h} className="text-left text-xs font-medium text-gray-500 px-4 py-3">
+                  {['San pham', 'Danh muc', 'Gia', 'Size', 'Trang thai', 'Thao tac'].map((h) => (
+                    <th
+                      key={h}
+                      style={{
+                        textAlign: 'left',
+                        fontSize: '12px',
+                        fontWeight: '500',
+                        color: '#6b7280',
+                        padding: '12px 16px',
+                      }}
+                    >
                       {h}
                     </th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-50">
+              <tbody>
                 {filtered.map((product) => (
                   <tr
                     key={product.id}
-                    className={`hover:bg-gray-50 cursor-pointer ${selected?.id === product.id ? 'bg-orange-50' : ''}`}
+                    style={{
+                      borderTop: '1px solid #f9fafb',
+                      cursor: 'pointer',
+                      background: selected?.id === product.id ? '#fff7ed' : 'white',
+                    }}
                     onClick={() => setSelected(selected?.id === product.id ? null : product)}
                   >
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center text-lg overflow-hidden">
+                    <td style={{ padding: '12px 16px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <div
+                          style={{
+                            width: '32px',
+                            height: '32px',
+                            borderRadius: '8px',
+                            background: '#fff7ed',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            overflow: 'hidden',
+                            flexShrink: 0,
+                          }}
+                        >
                           {product.imageUrl ? (
                             <img
                               src={product.imageUrl}
                               alt=""
-                              className="w-full h-full object-cover rounded-lg"
+                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                             />
                           ) : (
                             '☕'
                           )}
                         </div>
-                        <p className="text-sm font-medium text-gray-800">{product.name}</p>
+                        <span style={{ fontSize: '14px', fontWeight: '500', color: '#1f2937' }}>
+                          {product.name}
+                        </span>
                       </div>
                     </td>
-                    <td className="px-4 py-3">
-                      <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">
-                        {product.category?.name || 'Chưa phân loại'}
+                    <td style={{ padding: '12px 16px' }}>
+                      <span
+                        style={{
+                          fontSize: '12px',
+                          background: '#f3f4f6',
+                          color: '#4b5563',
+                          padding: '2px 8px',
+                          borderRadius: '999px',
+                        }}
+                      >
+                        {product.category?.name || 'Chua phan loai'}
                       </span>
                     </td>
-                    <td className="px-4 py-3">
-                      <span className="text-sm font-medium text-orange-600">
-                        {fmt(product.basePrice)}
-                      </span>
+                    <td
+                      style={{
+                        padding: '12px 16px',
+                        fontSize: '14px',
+                        fontWeight: '500',
+                        color: '#ea580c',
+                      }}
+                    >
+                      {fmt(product.basePrice)}
                     </td>
-                    <td className="px-4 py-3">
-                      <div className="flex gap-1 flex-wrap">
+                    <td style={{ padding: '12px 16px' }}>
+                      <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
                         {product.variants.length === 0 ? (
-                          <span className="text-xs text-gray-300">—</span>
+                          <span style={{ fontSize: '12px', color: '#d1d5db' }}>—</span>
                         ) : (
                           product.variants.map((v) => (
                             <span
                               key={v.id}
-                              className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full"
+                              style={{
+                                fontSize: '12px',
+                                background: '#eff6ff',
+                                color: '#2563eb',
+                                padding: '2px 8px',
+                                borderRadius: '999px',
+                              }}
                             >
                               {v.name}
                             </span>
@@ -363,40 +535,58 @@ export default function MenuPage() {
                         )}
                       </div>
                     </td>
-                    <td className="px-4 py-3">
+                    <td style={{ padding: '12px 16px' }}>
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           handleToggle(product);
                         }}
-                        className={`text-xs px-3 py-1 rounded-full font-medium transition-colors ${
-                          product.isAvailable
-                            ? 'bg-green-100 text-green-600 hover:bg-green-200'
-                            : 'bg-red-100 text-red-500 hover:bg-red-200'
-                        }`}
+                        style={{
+                          fontSize: '12px',
+                          padding: '4px 12px',
+                          borderRadius: '999px',
+                          border: 'none',
+                          cursor: 'pointer',
+                          fontWeight: '500',
+                          background: product.isAvailable ? '#dcfce7' : '#fee2e2',
+                          color: product.isAvailable ? '#16a34a' : '#ef4444',
+                        }}
                       >
-                        {product.isAvailable ? '✓ Đang bán' : '✗ Hết hàng'}
+                        {product.isAvailable ? 'Dang ban' : 'Het hang'}
                       </button>
                     </td>
-                    <td className="px-4 py-3">
-                      <div className="flex gap-2">
+                    <td style={{ padding: '12px 16px' }}>
+                      <div style={{ display: 'flex', gap: '12px' }}>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             openEdit(product);
                           }}
-                          className="text-xs text-blue-500 hover:text-blue-700 font-medium"
+                          style={{
+                            fontSize: '12px',
+                            color: '#3b82f6',
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            fontWeight: '500',
+                          }}
                         >
-                          Sửa
+                          Sua
                         </button>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             handleDelete(product);
                           }}
-                          className="text-xs text-red-400 hover:text-red-600"
+                          style={{
+                            fontSize: '12px',
+                            color: '#ef4444',
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                          }}
                         >
-                          Xoá
+                          Xoa
                         </button>
                       </div>
                     </td>
@@ -408,37 +598,80 @@ export default function MenuPage() {
         )}
       </div>
 
-      {/* Panel sửa size */}
       {selected && (
-        <div className="w-72 bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col overflow-hidden">
-          <div className="p-4 border-b border-gray-100 flex items-center justify-between">
+        <div
+          style={{
+            width: '280px',
+            background: 'white',
+            borderRadius: '12px',
+            border: '1px solid #f3f4f6',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+            flexShrink: 0,
+          }}
+        >
+          <div
+            style={{
+              padding: '16px',
+              borderBottom: '1px solid #f3f4f6',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}
+          >
             <div>
-              <h2 className="font-semibold text-gray-800 text-sm">Quản lý size</h2>
-              <p className="text-xs text-gray-400 mt-0.5">{selected.name}</p>
+              <h2 style={{ fontWeight: '600', fontSize: '14px', color: '#1f2937' }}>
+                Quan ly size
+              </h2>
+              <p style={{ fontSize: '12px', color: '#9ca3af', marginTop: '2px' }}>
+                {selected.name}
+              </p>
             </div>
-            <button onClick={() => setSelected(null)} className="text-gray-400 hover:text-gray-600">
+            <button
+              onClick={() => setSelected(null)}
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                color: '#9ca3af',
+                fontSize: '20px',
+              }}
+            >
               ×
             </button>
           </div>
 
-          <div className="flex-1 overflow-auto p-4 space-y-2">
+          <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
             {selected.variants.length === 0 ? (
-              <p className="text-xs text-gray-400 text-center py-4">Chưa có size nào</p>
+              <p
+                style={{ fontSize: '12px', color: '#9ca3af', textAlign: 'center', padding: '16px' }}
+              >
+                Chua co size nao
+              </p>
             ) : (
               selected.variants.map((v) => (
-                <div key={v.id}>
+                <div key={v.id} style={{ marginBottom: '8px' }}>
                   {editingVariant?.id === v.id ? (
                     <form
                       onSubmit={handleEditVariant}
-                      className="bg-orange-50 rounded-lg p-3 space-y-2"
+                      style={{ background: '#fff7ed', borderRadius: '8px', padding: '12px' }}
                     >
                       <input
                         value={editVariantForm.name}
                         onChange={(e) =>
                           setEditVariantForm({ ...editVariantForm, name: e.target.value })
                         }
-                        className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-orange-400"
-                        placeholder="Tên size"
+                        style={{
+                          width: '100%',
+                          padding: '6px 8px',
+                          border: '1px solid #d1d5db',
+                          borderRadius: '6px',
+                          fontSize: '12px',
+                          marginBottom: '6px',
+                          boxSizing: 'border-box',
+                        }}
+                        placeholder="Ten size"
                         required
                       />
                       <input
@@ -447,38 +680,76 @@ export default function MenuPage() {
                         onChange={(e) =>
                           setEditVariantForm({ ...editVariantForm, priceModifier: e.target.value })
                         }
-                        className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-orange-400"
-                        placeholder="Chênh lệch giá"
+                        style={{
+                          width: '100%',
+                          padding: '6px 8px',
+                          border: '1px solid #d1d5db',
+                          borderRadius: '6px',
+                          fontSize: '12px',
+                          marginBottom: '6px',
+                          boxSizing: 'border-box',
+                        }}
+                        placeholder="Chenh lech gia"
                       />
-                      <div className="flex gap-1">
+                      <div style={{ display: 'flex', gap: '6px' }}>
                         <button
                           type="submit"
                           disabled={saving}
-                          className="flex-1 bg-orange-500 text-white py-1 rounded text-xs font-medium hover:bg-orange-600"
+                          style={{
+                            flex: 1,
+                            background: '#f97316',
+                            color: 'white',
+                            padding: '6px',
+                            borderRadius: '6px',
+                            border: 'none',
+                            cursor: 'pointer',
+                            fontSize: '12px',
+                            fontWeight: '500',
+                          }}
                         >
-                          Lưu
+                          Luu
                         </button>
                         <button
                           type="button"
                           onClick={() => setEditingVariant(null)}
-                          className="flex-1 bg-gray-100 text-gray-600 py-1 rounded text-xs font-medium"
+                          style={{
+                            flex: 1,
+                            background: '#f3f4f6',
+                            color: '#4b5563',
+                            padding: '6px',
+                            borderRadius: '6px',
+                            border: 'none',
+                            cursor: 'pointer',
+                            fontSize: '12px',
+                          }}
                         >
-                          Huỷ
+                          Huy
                         </button>
                       </div>
                     </form>
                   ) : (
-                    <div className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        background: '#f9fafb',
+                        borderRadius: '8px',
+                        padding: '8px 12px',
+                      }}
+                    >
                       <div>
-                        <p className="text-sm font-medium text-gray-700">{v.name}</p>
+                        <p style={{ fontSize: '14px', fontWeight: '500', color: '#374151' }}>
+                          {v.name}
+                        </p>
                         {v.priceModifier !== 0 && (
-                          <p className="text-xs text-gray-400">
+                          <p style={{ fontSize: '12px', color: '#9ca3af' }}>
                             {v.priceModifier > 0 ? '+' : ''}
                             {fmt(v.priceModifier)}
                           </p>
                         )}
                       </div>
-                      <div className="flex gap-2">
+                      <div style={{ display: 'flex', gap: '8px' }}>
                         <button
                           onClick={() => {
                             setEditingVariant(v);
@@ -487,15 +758,27 @@ export default function MenuPage() {
                               priceModifier: v.priceModifier.toString(),
                             });
                           }}
-                          className="text-xs text-blue-500 hover:text-blue-700"
+                          style={{
+                            fontSize: '12px',
+                            color: '#3b82f6',
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                          }}
                         >
-                          Sửa
+                          Sua
                         </button>
                         <button
                           onClick={() => handleDeleteVariant(v.id)}
-                          className="text-xs text-red-400 hover:text-red-600"
+                          style={{
+                            fontSize: '12px',
+                            color: '#ef4444',
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                          }}
                         >
-                          Xoá
+                          Xoa
                         </button>
                       </div>
                     </div>
@@ -505,15 +788,22 @@ export default function MenuPage() {
             )}
           </div>
 
-          {/* Thêm size */}
-          <div className="p-4 border-t border-gray-100">
+          <div style={{ padding: '16px', borderTop: '1px solid #f3f4f6' }}>
             {addingVariant ? (
-              <form onSubmit={handleAddVariant} className="space-y-2">
+              <form onSubmit={handleAddVariant}>
                 <input
                   value={variantForm.name}
                   onChange={(e) => setVariantForm({ ...variantForm, name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
-                  placeholder="Tên size (VD: Nhỏ, Vừa, Lớn)"
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '8px',
+                    fontSize: '14px',
+                    marginBottom: '6px',
+                    boxSizing: 'border-box',
+                  }}
+                  placeholder="Ten size (VD: Nho, Vua, Lon)"
                   required
                 />
                 <input
@@ -522,32 +812,67 @@ export default function MenuPage() {
                   onChange={(e) =>
                     setVariantForm({ ...variantForm, priceModifier: e.target.value })
                   }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
-                  placeholder="Chênh lệch giá (0 = không đổi)"
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '8px',
+                    fontSize: '14px',
+                    marginBottom: '8px',
+                    boxSizing: 'border-box',
+                  }}
+                  placeholder="Chenh lech gia (0 = khong doi)"
                 />
-                <div className="flex gap-2">
+                <div style={{ display: 'flex', gap: '8px' }}>
                   <button
                     type="submit"
                     disabled={saving}
-                    className="flex-1 bg-orange-500 text-white py-2 rounded-lg text-sm font-medium hover:bg-orange-600 disabled:opacity-50"
+                    style={{
+                      flex: 1,
+                      background: '#f97316',
+                      color: 'white',
+                      padding: '8px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      cursor: 'pointer',
+                      fontWeight: '500',
+                      opacity: saving ? 0.5 : 1,
+                    }}
                   >
-                    {saving ? '...' : 'Thêm size'}
+                    {saving ? '...' : 'Them size'}
                   </button>
                   <button
                     type="button"
                     onClick={() => setAddingVariant(false)}
-                    className="flex-1 bg-gray-100 text-gray-600 py-2 rounded-lg text-sm font-medium"
+                    style={{
+                      flex: 1,
+                      background: '#f3f4f6',
+                      color: '#4b5563',
+                      padding: '8px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      cursor: 'pointer',
+                    }}
                   >
-                    Huỷ
+                    Huy
                   </button>
                 </div>
               </form>
             ) : (
               <button
                 onClick={() => setAddingVariant(true)}
-                className="w-full border-2 border-dashed border-gray-200 hover:border-orange-300 text-gray-400 hover:text-orange-500 py-2 rounded-lg text-sm transition-colors"
+                style={{
+                  width: '100%',
+                  border: '2px dashed #e5e7eb',
+                  background: 'none',
+                  color: '#9ca3af',
+                  padding: '8px',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                }}
               >
-                + Thêm size mới
+                + Them size moi
               </button>
             )}
           </div>
