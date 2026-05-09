@@ -1,2 +1,2 @@
-import { signAccess } from "./jwt";
+import { signAccess } from './jwt';
 export const generateToken = (payload: any) => signAccess(payload);
