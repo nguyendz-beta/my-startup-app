@@ -3,6 +3,6 @@
     "builder": "NIXPACKS"
   },
   "deploy": {
-    "startCommand": "npx ts-node src/server.ts"
+    "startCommand": "npx ts-node --transpile-only src/server.ts"
   }
 }
