@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import toast from 'react-hot-toast'
 
 interface User {
   id: string
@@ -24,11 +25,13 @@ export const useAuthStore = create<AuthState>((set) => ({
     localStorage.setItem('token', token)
     localStorage.setItem('user', JSON.stringify(user))
     set({ token, user })
+    toast.success(`Xin chào, ${user.name}! 👋`)
   },
 
   logout: () => {
     localStorage.removeItem('token')
     localStorage.removeItem('user')
     set({ token: null, user: null })
+    toast.success('Đã đăng xuất')
   },
 }))

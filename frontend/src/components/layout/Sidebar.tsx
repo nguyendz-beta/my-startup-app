@@ -6,8 +6,17 @@ const navItems = [
   { to: '/pos', label: 'Bán hàng', icon: '🛒' },
   { to: '/orders', label: 'Đơn hàng', icon: '📋' },
   { to: '/tables', label: 'Sơ đồ bàn', icon: '🪑' },
+  { to: '/kitchen', label: 'Màn hình bếp', icon: '🍳' },
   { to: '/menu', label: 'Thực đơn', icon: '🍽️' },
+  { to: '/staff', label: 'Nhân viên', icon: '👥' },
+  { to: '/branches', label: 'Chi nhánh', icon: '🏪' },
+  { to: '/reports', label: 'Báo cáo', icon: '📈' },
   { to: '/profile', label: 'Tài khoản', icon: '👤' },
+  { to: '/qr', label: 'QR Order', icon: '📱' },
+  { to: '/shifts', label: 'Báo cáo ca', icon: '🕐' },
+  { to: '/inventory', label: 'Kho hàng', icon: '📦' },
+  { to: '/loyalty', label: 'Khách hàng', icon: '🎁' },
+  { to: '/reservations', label: 'Đặt bàn', icon: '📅' },
 ];
 
 export default function Sidebar() {
@@ -20,7 +29,7 @@ export default function Sidebar() {
         <p className="text-xs text-gray-400 mt-1">{user?.branch?.name || 'Tất cả chi nhánh'}</p>
       </div>
 
-      <nav className="flex-1 p-3 space-y-1">
+      <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
         {navItems.map((item) => (
           <NavLink
             key={item.to}

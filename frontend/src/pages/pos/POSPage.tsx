@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { productApi } from '../../api/productApi'
 import { orderApi } from '../../api/orderApi'
 import { useAuthStore } from '../../store/authStore'
+import PaymentModal from '../../components/payment/PaymentModal'
+import toast from 'react-hot-toast'
 
 interface Product {
   id: string
@@ -16,14 +18,16 @@ interface CartItem {
   productId: string; variantId?: string; name: string
   variantName?: string; quantity: number; unitPrice: number
 }
+
 export default function POSPage() {
   const user = useAuthStore((s) => s.user)
   const [categories, setCategories] = useState<Category[]>([])
   const [products, setProducts] = useState<Product[]>([])
   const [activeCat, setActiveCat] = useState<string>('')
   const [cart, setCart] = useState<CartItem[]>([])
-  const [loading, setLoading] = useState(false)
-  const [success, setSuccess] = useState('')
+  const [showPayment, setShowPayment] = useState(false)
+
+  const branchId = user?.branch?.id || ''
 
   useEffect(() => {
     productApi.getCategories().then((r) => {
@@ -56,30 +60,48 @@ export default function POSPage() {
     })
   }
 
+  const updateQty = (index: number, delta: number) => {
+    setCart((prev) => prev
+      .map((item, i) => i === index ? { ...item, quantity: item.quantity + delta } : item)
+      .filter((item) => item.quantity > 0)
+    )
+  }
+
   const removeFromCart = (index: number) => setCart((prev) => prev.filter((_, i) => i !== index))
 
   const total = cart.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0)
   const fmt = (n: number) => new Intl.NumberFormat('vi-VN').format(n) + 'đ'
 
-  const handleCheckout = async () => {
-    if (cart.length === 0) return
-    setLoading(true)
+  const handleCheckout = () => {
+    if (cart.length === 0) {
+      toast.error('Giỏ hàng trống!')
+      return
+    }
+    setShowPayment(true)
+  }
+
+  const handlePaymentConfirm = async (method: string, received: number, change: number) => {
     try {
       await orderApi.createOrder({
+        branchId,
         source: 'DINE_IN',
+        paymentMethod: method,
         items: cart.map((i) => ({
           productId: i.productId,
           variantId: i.variantId,
           quantity: i.quantity,
+          unitPrice: i.unitPrice,
         })),
       })
       setCart([])
-      setSuccess('Đã tạo đơn hàng thành công!')
-      setTimeout(() => setSuccess(''), 3000)
-    } catch (e: any) {
-      alert(e.response?.data?.message || 'Lỗi tạo đơn')
-    } finally {
-      setLoading(false)
+      setShowPayment(false)
+      toast.success(
+        change > 0
+          ? `Thanh toán thành công! Tiền thối: ${fmt(change)}`
+          : 'Thanh toán thành công! 🎉'
+      )
+    } catch {
+      toast.error('Lỗi tạo đơn hàng!')
     }
   }
 
@@ -88,6 +110,16 @@ export default function POSPage() {
       {/* Menu */}
       <div className="flex-1 flex flex-col gap-4">
         <div className="flex gap-2 flex-wrap">
+          <button
+            onClick={() => setActiveCat('')}
+            className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+              activeCat === ''
+                ? 'bg-orange-500 text-white'
+                : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+            }`}
+          >
+            Tất cả
+          </button>
           {categories.map((cat) => (
             <button
               key={cat.id}
@@ -103,15 +135,18 @@ export default function POSPage() {
           ))}
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 overflow-auto">
           {filteredProducts.map((product) => (
             <div
               key={product.id}
               className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 cursor-pointer hover:border-orange-300 transition-colors"
               onClick={() => addToCart(product)}
             >
-              <div className="w-full h-24 bg-orange-50 rounded-lg flex items-center justify-center text-3xl mb-3">
-                ☕
+              <div className="w-full h-24 bg-orange-50 rounded-lg flex items-center justify-center text-3xl mb-3 overflow-hidden">
+                {product.imageUrl
+                  ? <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover rounded-lg" />
+                  : '☕'
+                }
               </div>
               <p className="text-sm font-medium text-gray-800 line-clamp-2">{product.name}</p>
               <p className="text-orange-600 font-semibold text-sm mt-1">{fmt(product.basePrice)}</p>
@@ -135,8 +170,16 @@ export default function POSPage() {
 
       {/* Cart */}
       <div className="w-80 bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col">
-        <div className="p-4 border-b border-gray-100">
+        <div className="p-4 border-b border-gray-100 flex items-center justify-between">
           <h2 className="font-semibold text-gray-700">🛒 Đơn hàng</h2>
+          {cart.length > 0 && (
+            <button
+              onClick={() => setCart([])}
+              className="text-xs text-red-400 hover:text-red-600"
+            >
+              Xoá hết
+            </button>
+          )}
         </div>
 
         <div className="flex-1 overflow-auto p-4 space-y-3">
@@ -152,11 +195,23 @@ export default function POSPage() {
                   )}
                   <p className="text-xs text-orange-600">{fmt(item.unitPrice)}</p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => updateQty(i, -1)}
+                    className="w-6 h-6 rounded-full bg-gray-100 text-gray-600 text-sm flex items-center justify-center hover:bg-gray-200"
+                  >
+                    −
+                  </button>
                   <span className="text-sm font-medium w-6 text-center">{item.quantity}</span>
                   <button
+                    onClick={() => updateQty(i, 1)}
+                    className="w-6 h-6 rounded-full bg-orange-100 text-orange-600 text-sm flex items-center justify-center hover:bg-orange-200"
+                  >
+                    +
+                  </button>
+                  <button
                     onClick={() => removeFromCart(i)}
-                    className="w-5 h-5 rounded-full bg-red-100 text-red-500 text-xs flex items-center justify-center hover:bg-red-200"
+                    className="w-6 h-6 rounded-full bg-red-100 text-red-500 text-xs flex items-center justify-center hover:bg-red-200 ml-1"
                   >
                     ×
                   </button>
@@ -172,19 +227,24 @@ export default function POSPage() {
             <span className="text-orange-600">{fmt(total)}</span>
           </div>
 
-          {success && (
-            <div className="bg-green-50 text-green-600 text-xs px-3 py-2 rounded-lg">{success}</div>
-          )}
-
           <button
             onClick={handleCheckout}
-            disabled={loading || cart.length === 0}
+            disabled={cart.length === 0}
             className="w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3 rounded-lg transition-colors disabled:opacity-50"
           >
-            {loading ? 'Đang tạo đơn...' : '✓ Tạo đơn hàng'}
+            💳 Thanh toán
           </button>
         </div>
       </div>
+
+      {/* Payment Modal */}
+      {showPayment && (
+        <PaymentModal
+          total={total}
+          onClose={() => setShowPayment(false)}
+          onConfirm={handlePaymentConfirm}
+        />
+      )}
     </div>
   )
 }
