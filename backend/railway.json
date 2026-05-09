@@ -3,6 +3,7 @@
     "builder": "NIXPACKS"
   },
   "deploy": {
-    "startCommand": "npx prisma migrate deploy && npx ts-node src/server.ts"
+    "startCommand": "npx ts-node src/server.ts",
+    "preDeployCommand": "npx prisma migrate deploy"
   }
 }
