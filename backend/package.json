@@ -4,9 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only -r tsconfig-paths/register src/server.ts",
-    "build": "prisma generate && tsc -p tsconfig.json || true",
+    "build": "tsc -p tsconfig.json || true",
     "start": "npx ts-node src/server.ts",
-    "postinstall": "prisma generate",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "ts-node prisma/seed.ts"
