@@ -1,6 +1,7 @@
 {
   "build": {
-    "builder": "NIXPACKS"
+    "builder": "NIXPACKS",
+    "buildCommand": "npm install && npx prisma generate"
   },
   "deploy": {
     "startCommand": "npx ts-node --transpile-only src/server.ts"
