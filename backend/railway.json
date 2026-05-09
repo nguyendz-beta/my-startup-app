@@ -3,7 +3,6 @@
     "builder": "NIXPACKS"
   },
   "deploy": {
-    "startCommand": "npm run build && node dist/server.js",
-    "healthcheckPath": "/api/health"
+    "startCommand": "npx prisma migrate deploy && npx ts-node src/server.ts"
   }
 }
