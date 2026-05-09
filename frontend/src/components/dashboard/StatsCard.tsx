@@ -1,5 +1,6 @@
-import React from "react";
+﻿import React from "react";
 
 export default function StatsCard() {
   return <div className="p-4 border rounded">Stats</div>;
 }
+

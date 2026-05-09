@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { productApi } from '../../api/productApi';
 import toast from 'react-hot-toast';
 
@@ -881,3 +881,4 @@ export default function MenuPage() {
     </div>
   );
 }
+

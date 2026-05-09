@@ -1,4 +1,4 @@
-import { useAuthStore } from '../../store/authStore'
+﻿import { useAuthStore } from '../../store/authStore'
 
 export default function Header() {
   const user = useAuthStore((s) => s.user)

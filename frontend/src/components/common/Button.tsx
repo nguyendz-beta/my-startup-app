@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 
 export default function Button({ children }: { children?: React.ReactNode }) {
   return (
@@ -7,3 +7,4 @@ export default function Button({ children }: { children?: React.ReactNode }) {
     </button>
   );
 }
+

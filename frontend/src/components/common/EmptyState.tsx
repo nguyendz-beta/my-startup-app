@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 
 export default function EmptyState({
   message = "No data",
@@ -7,3 +7,4 @@ export default function EmptyState({
 }) {
   return <div className="text-center py-6">{message}</div>;
 }
+

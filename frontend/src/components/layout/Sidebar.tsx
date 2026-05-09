@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom';
+﻿import { NavLink } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { useRole } from '../../hooks/useRole';
 
@@ -101,3 +101,4 @@ export default function Sidebar() {
     </aside>
   );
 }
+

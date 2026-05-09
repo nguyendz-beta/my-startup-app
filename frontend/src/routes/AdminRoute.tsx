@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 
 export default function AdminRoute({
   children,
@@ -7,3 +7,4 @@ export default function AdminRoute({
 }) {
   return <>{children}</>;
 }
+

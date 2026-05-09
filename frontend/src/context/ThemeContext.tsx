@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 
 export const ThemeContext = React.createContext({ theme: "light" });
 
@@ -9,3 +9,4 @@ export function ThemeProvider({ children }: { children?: React.ReactNode }) {
     </ThemeContext.Provider>
   );
 }
+

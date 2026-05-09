@@ -1,5 +1,6 @@
-import React from "react";
+﻿import React from "react";
 
 export default function Table() {
   return <table className="w-full"> </table>;
 }
+
