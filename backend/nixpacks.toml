@@ -8,4 +8,4 @@ cmds = ["npm install"]
 cmds = ["npx prisma generate"]
 
 [start]
-cmd = "npx ts-node src/server.ts"
+cmd = "npx ts-node --transpile-only src/server.ts"
