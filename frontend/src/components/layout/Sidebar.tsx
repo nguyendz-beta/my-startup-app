@@ -1,26 +1,60 @@
 import { NavLink } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
+import { useRole } from '../../hooks/useRole';
 
-const navItems = [
-  { to: '/dashboard', label: 'Dashboard', icon: '📊' },
-  { to: '/pos', label: 'Bán hàng', icon: '🛒' },
-  { to: '/orders', label: 'Đơn hàng', icon: '📋' },
-  { to: '/tables', label: 'Sơ đồ bàn', icon: '🪑' },
-  { to: '/kitchen', label: 'Màn hình bếp', icon: '🍳' },
-  { to: '/menu', label: 'Thực đơn', icon: '🍽️' },
-  { to: '/staff', label: 'Nhân viên', icon: '👥' },
-  { to: '/branches', label: 'Chi nhánh', icon: '🏪' },
-  { to: '/reports', label: 'Báo cáo', icon: '📈' },
-  { to: '/profile', label: 'Tài khoản', icon: '👤' },
-  { to: '/qr', label: 'QR Order', icon: '📱' },
-  { to: '/shifts', label: 'Báo cáo ca', icon: '🕐' },
-  { to: '/inventory', label: 'Kho hàng', icon: '📦' },
-  { to: '/loyalty', label: 'Khách hàng', icon: '🎁' },
-  { to: '/reservations', label: 'Đặt bàn', icon: '📅' },
+const ALL_NAV_ITEMS = [
+  { to: '/dashboard', label: 'Dashboard', icon: '📊', roles: ['OWNER', 'MANAGER', 'CASHIER'] },
+  { to: '/pos', label: 'Bán hàng', icon: '🛒', roles: ['OWNER', 'MANAGER', 'CASHIER', 'WAITER'] },
+  {
+    to: '/orders',
+    label: 'Đơn hàng',
+    icon: '📋',
+    roles: ['OWNER', 'MANAGER', 'CASHIER', 'WAITER', 'KITCHEN'],
+  },
+  {
+    to: '/tables',
+    label: 'Sơ đồ bàn',
+    icon: '🪑',
+    roles: ['OWNER', 'MANAGER', 'CASHIER', 'WAITER'],
+  },
+  { to: '/kitchen', label: 'Màn hình bếp', icon: '🍳', roles: ['OWNER', 'MANAGER', 'KITCHEN'] },
+  { to: '/menu', label: 'Thực đơn', icon: '🍽️', roles: ['OWNER', 'MANAGER'] },
+  { to: '/staff', label: 'Nhân viên', icon: '👥', roles: ['OWNER', 'MANAGER'] },
+  { to: '/branches', label: 'Chi nhánh', icon: '🏪', roles: ['OWNER'] },
+  { to: '/inventory', label: 'Kho hàng', icon: '📦', roles: ['OWNER', 'MANAGER'] },
+  { to: '/shifts', label: 'Báo cáo ca', icon: '🕐', roles: ['OWNER', 'MANAGER', 'CASHIER'] },
+  {
+    to: '/reservations',
+    label: 'Đặt bàn',
+    icon: '📅',
+    roles: ['OWNER', 'MANAGER', 'CASHIER', 'WAITER'],
+  },
+  { to: '/loyalty', label: 'Khách hàng', icon: '🎁', roles: ['OWNER', 'MANAGER', 'CASHIER'] },
+  { to: '/qr', label: 'QR Order', icon: '📱', roles: ['OWNER', 'MANAGER'] },
+  { to: '/reports', label: 'Báo cáo', icon: '📈', roles: ['OWNER', 'MANAGER'] },
+  {
+    to: '/profile',
+    label: 'Tài khoản',
+    icon: '👤',
+    roles: ['OWNER', 'MANAGER', 'CASHIER', 'KITCHEN', 'WAITER'],
+  },
 ];
+
+const ROLE_BADGE: Record<string, { label: string; color: string }> = {
+  OWNER: { label: 'Chủ quán', color: 'text-orange-600 bg-orange-50' },
+  MANAGER: { label: 'Quản lý', color: 'text-blue-600 bg-blue-50' },
+  CASHIER: { label: 'Thu ngân', color: 'text-green-600 bg-green-50' },
+  KITCHEN: { label: 'Bếp', color: 'text-purple-600 bg-purple-50' },
+  WAITER: { label: 'Phục vụ', color: 'text-pink-600 bg-pink-50' },
+};
 
 export default function Sidebar() {
   const { user, logout } = useAuthStore();
+  const { role, canAccess } = useRole();
+
+  const navItems = ALL_NAV_ITEMS.filter((item) => canAccess(item.roles as any[]));
+
+  const badge = role ? ROLE_BADGE[role] : null;
 
   return (
     <aside className="w-60 bg-white border-r border-gray-200 flex flex-col">
@@ -49,7 +83,13 @@ export default function Sidebar() {
       <div className="p-3 border-t border-gray-100">
         <div className="px-3 py-2 mb-1">
           <p className="text-sm font-medium text-gray-700">{user?.name}</p>
-          <p className="text-xs text-gray-400">{user?.role}</p>
+          {badge && (
+            <span
+              className={`text-xs px-2 py-0.5 rounded-full font-medium mt-1 inline-block ${badge.color}`}
+            >
+              {badge.label}
+            </span>
+          )}
         </div>
         <button
           onClick={logout}
