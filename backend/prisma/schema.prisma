@@ -260,8 +260,9 @@ model Order {
   discountId  String?
   orderCode   String      @unique
   source      OrderSource @default(DINE_IN)
-  status      OrderStatus @default(PENDING)
-  note        String?     @db.Text
+  status        OrderStatus @default(PENDING)
+  paymentMethod String?
+  note          String?     @db.Text
   subtotal    Int                        // VNĐ
   discount    Int         @default(0)   // VNĐ
   tax         Int         @default(0)   // VNĐ

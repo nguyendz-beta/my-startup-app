@@ -15,7 +15,7 @@ export const orderService = {
           },
         }),
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: 'asc' },
       include: {
         table: { select: { id: true, name: true } },
         cashier: { select: { id: true, name: true } },
@@ -53,6 +53,7 @@ export const orderService = {
     note?: string
     discountId?: string
     autoComplete?: boolean
+    paymentMethod?: string
     items: { productId: string; variantId?: string; quantity: number; note?: string }[]
   }) {
     let subtotal = 0
@@ -105,6 +106,7 @@ export const orderService = {
         orderCode,
         source: data.source as any,
         status: status as any,
+        paymentMethod: data.paymentMethod,
         ...(data.autoComplete && { completedAt: new Date() }),
         note: data.note,
         subtotal,
