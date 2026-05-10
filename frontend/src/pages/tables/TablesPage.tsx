@@ -1,6 +1,7 @@
 ﻿import { useEffect, useState } from 'react'
 import { tableApi } from '../../api/tableApi'
 import { useAuthStore } from '../../store/authStore'
+import axios from 'axios'
 
 interface Table {
   id: string
@@ -10,31 +11,57 @@ interface Table {
   orders: { id: string; orderCode: string; status: string; total: number }[]
 }
 
+interface Branch {
+  id: string
+  name: string
+}
+
 const STATUS = {
-  AVAILABLE: { label: 'Trống',    color: 'bg-green-50 border-green-200 text-green-700' },
-  OCCUPIED:  { label: 'Có khách', color: 'bg-orange-50 border-orange-300 text-orange-700' },
-  RESERVED:  { label: 'Đặt trước',color: 'bg-blue-50 border-blue-200 text-blue-700' },
-  CLEANING:  { label: 'Dọn dẹp',  color: 'bg-gray-50 border-gray-200 text-gray-500' },
+  AVAILABLE: { label: 'Trống',     color: 'bg-green-50 border-green-200 text-green-700' },
+  OCCUPIED:  { label: 'Có khách',  color: 'bg-orange-50 border-orange-300 text-orange-700' },
+  RESERVED:  { label: 'Đặt trước', color: 'bg-blue-50 border-blue-200 text-blue-700' },
+  CLEANING:  { label: 'Dọn dẹp',   color: 'bg-gray-50 border-gray-200 text-gray-500' },
 }
 
 export default function TablesPage() {
   const user = useAuthStore((s) => s.user)
   const [tables, setTables] = useState<Table[]>([])
+  const [branches, setBranches] = useState<Branch[]>([])
+  const [selectedBranch, setSelectedBranch] = useState('')
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ name: '', capacity: '4' })
   const [saving, setSaving] = useState(false)
 
-  const branchId = user?.branch?.id || ''
+  // OWNER không có branch gắn sẵn → dùng selectedBranch
+  const branchId = user?.branch?.id || selectedBranch
+
+  // Load danh sách branches cho OWNER chọn
+  useEffect(() => {
+    if (user?.branch?.id) return // Cashier/Waiter đã có branch rồi
+    const token = localStorage.getItem('token')
+    axios.get('/api/branches', { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => {
+        const list = r.data.data || []
+        setBranches(list)
+        if (list.length > 0) setSelectedBranch(list[0].id)
+      })
+      .catch(() => {
+        // fallback: thử lấy từ dashboard stats
+      })
+  }, [user])
 
   const loadTables = () => {
     if (!branchId) return
+    setLoading(true)
     tableApi.getTables(branchId)
       .then((r) => setTables(r.data.data))
       .finally(() => setLoading(false))
   }
 
-  useEffect(() => { loadTables() }, [branchId])
+  useEffect(() => {
+    if (branchId) loadTables()
+  }, [branchId])
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -58,11 +85,10 @@ export default function TablesPage() {
 
   const fmt = (n: number) => new Intl.NumberFormat('vi-VN').format(n) + 'đ'
 
-  if (!branchId) return (
-    <div className="text-center py-20 text-gray-400">
-      Vui lòng đăng nhập bằng tài khoản Cashier để xem bàn.
-    </div>
-  )
+  // OWNER chưa chọn branch và chưa load xong
+  if (!user?.branch?.id && branches.length === 0 && loading) {
+    return <div className="text-center py-20 text-gray-400">Đang tải...</div>
+  }
 
   return (
     <div className="space-y-6">
@@ -71,7 +97,19 @@ export default function TablesPage() {
           <h1 className="text-2xl font-bold text-gray-800">Sơ đồ bàn</h1>
           <p className="text-gray-500 text-sm mt-1">{tables.length} bàn</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
+          {/* Nếu OWNER có nhiều branch → hiện dropdown chọn */}
+          {!user?.branch?.id && branches.length > 1 && (
+            <select
+              value={selectedBranch}
+              onChange={(e) => setSelectedBranch(e.target.value)}
+              className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+            >
+              {branches.map((b) => (
+                <option key={b.id} value={b.id}>{b.name}</option>
+              ))}
+            </select>
+          )}
           <button onClick={loadTables} className="text-sm text-orange-500 hover:underline">↻ Làm mới</button>
           <button
             onClick={() => setShowForm(!showForm)}
@@ -95,7 +133,7 @@ export default function TablesPage() {
       {showForm && (
         <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
           <h2 className="font-semibold text-gray-700 mb-4">Thêm bàn mới</h2>
-          <form onSubmit={handleCreate} className="flex gap-4 items-end">
+          <form onSubmit={handleCreate} className="flex gap-4 items-end flex-wrap">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Tên bàn</label>
               <input
@@ -130,6 +168,8 @@ export default function TablesPage() {
 
       {loading ? (
         <div className="text-center py-20 text-gray-400">Đang tải...</div>
+      ) : tables.length === 0 ? (
+        <div className="text-center py-20 text-gray-400">Chưa có bàn nào. Bấm + Thêm bàn để bắt đầu.</div>
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
           {tables.map((table) => {
@@ -156,26 +196,20 @@ export default function TablesPage() {
 
                 <div className="mt-3 flex gap-1 flex-wrap">
                   {table.status !== 'AVAILABLE' && (
-                    <button
-                      onClick={() => handleStatusChange(table.id, 'AVAILABLE')}
-                      className="text-xs px-2 py-1 bg-white/60 rounded-lg hover:bg-white transition-colors"
-                    >
+                    <button onClick={() => handleStatusChange(table.id, 'AVAILABLE')}
+                      className="text-xs px-2 py-1 bg-white/60 rounded-lg hover:bg-white transition-colors">
                       Trống
                     </button>
                   )}
                   {table.status !== 'OCCUPIED' && (
-                    <button
-                      onClick={() => handleStatusChange(table.id, 'OCCUPIED')}
-                      className="text-xs px-2 py-1 bg-white/60 rounded-lg hover:bg-white transition-colors"
-                    >
+                    <button onClick={() => handleStatusChange(table.id, 'OCCUPIED')}
+                      className="text-xs px-2 py-1 bg-white/60 rounded-lg hover:bg-white transition-colors">
                       Có khách
                     </button>
                   )}
                   {table.status !== 'CLEANING' && (
-                    <button
-                      onClick={() => handleStatusChange(table.id, 'CLEANING')}
-                      className="text-xs px-2 py-1 bg-white/60 rounded-lg hover:bg-white transition-colors"
-                    >
+                    <button onClick={() => handleStatusChange(table.id, 'CLEANING')}
+                      className="text-xs px-2 py-1 bg-white/60 rounded-lg hover:bg-white transition-colors">
                       Dọn dẹp
                     </button>
                   )}
