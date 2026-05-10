@@ -97,9 +97,10 @@ export default function POSPage() {
 
   const handlePaymentConfirm = async (method: string, received: number, change: number) => {
     try {
-      const res = await orderApi.createOrder({
+      await orderApi.createOrder({
         branchId,
         source: 'DINE_IN',
+        autoComplete: true,
         paymentMethod: method,
         items: cart.map((i) => ({
           productId: i.productId,
@@ -108,8 +109,6 @@ export default function POSPage() {
           unitPrice: i.unitPrice,
         })),
       });
-      const orderId = res.data.data.id;
-      await orderApi.updateStatus(orderId, 'COMPLETED');
       setCart([]);
       setShowPayment(false);
       toast.success(

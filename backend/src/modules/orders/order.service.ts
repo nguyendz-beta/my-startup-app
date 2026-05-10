@@ -52,6 +52,7 @@ export const orderService = {
     source: string
     note?: string
     discountId?: string
+    autoComplete?: boolean
     items: { productId: string; variantId?: string; quantity: number; note?: string }[]
   }) {
     let subtotal = 0
@@ -93,6 +94,8 @@ export const orderService = {
     })
     const orderCode = `${String.fromCharCode(65 + (Math.floor(todayOrders / 100) % 26))}${String(todayOrders % 100 + 1).padStart(3, '0')}`
 
+    const status = data.autoComplete ? 'COMPLETED' : 'PENDING'
+
     const order = await prisma.order.create({
       data: {
         branchId,
@@ -101,6 +104,8 @@ export const orderService = {
         discountId: data.discountId,
         orderCode,
         source: data.source as any,
+        status: status as any,
+        ...(data.autoComplete && { completedAt: new Date() }),
         note: data.note,
         subtotal,
         discount: discountAmount,
