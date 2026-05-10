@@ -11,6 +11,7 @@ import { errorMiddleware } from './middlewares/errorMiddleware';
 import dashboardRoutes from './modules/dashboard/dashboard.route';
 import branchRoutes from './modules/branches/branch.route';
 import shiftRoutes from './modules/shifts/shift.route';
+import reservationRoutes from './modules/reservations/reservation.route';
 
 const app = express();
 app.use(cors());
@@ -28,8 +29,10 @@ app.use('/api/tables', tableRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/dashboard', dashboardRoutes);
-app.use(errorMiddleware);
 app.use('/api/branches', branchRoutes);
 app.use('/api/shifts', shiftRoutes);
+app.use('/api/reservations', reservationRoutes);
+
+app.use(errorMiddleware);
 
 export default app;
