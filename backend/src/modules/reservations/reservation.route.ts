@@ -5,10 +5,12 @@ import prisma from '../../prisma/prismaClient'
 const router = Router()
 router.use(authMiddleware)
 
+const db = prisma as any
+
 const getBranchId = async (user: any, bodyBranchId?: string) => {
   if (bodyBranchId) return bodyBranchId
   if (user.branchId) return user.branchId
-  const branch = await prisma.branch.findFirst({ where: { tenantId: user.tenantId } })
+  const branch = await db.branch.findFirst({ where: { tenantId: user.tenantId } })
   if (!branch) throw new Error('Không tìm thấy chi nhánh')
   return branch.id
 }
@@ -19,7 +21,7 @@ router.get('/', async (req, res) => {
     const branchId = await getBranchId(user, req.query.branchId as string)
     const where: any = { branchId }
     if (req.query.status) where.status = req.query.status
-    const data = await prisma.reservation.findMany({
+    const data = await db.reservation.findMany({
       where,
       orderBy: { reservedAt: 'asc' },
       include: { table: { select: { id: true, name: true } } },
@@ -34,7 +36,7 @@ router.post('/', async (req, res) => {
   try {
     const user = (req as any).user
     const branchId = await getBranchId(user, req.body.branchId)
-    const data = await prisma.reservation.create({
+    const data = await db.reservation.create({
       data: {
         branchId,
         customerName: req.body.customerName,
@@ -53,7 +55,7 @@ router.post('/', async (req, res) => {
 
 router.put('/:id', async (req, res) => {
   try {
-    const data = await prisma.reservation.update({
+    const data = await db.reservation.update({
       where: { id: req.params.id },
       data: {
         status: req.body.status,
@@ -70,7 +72,7 @@ router.put('/:id', async (req, res) => {
 
 router.delete('/:id', async (req, res) => {
   try {
-    await prisma.reservation.delete({ where: { id: req.params.id } })
+    await db.reservation.delete({ where: { id: req.params.id } })
     return res.json({ success: true })
   } catch (e: any) {
     return res.status(400).json({ success: false, message: e.message })
