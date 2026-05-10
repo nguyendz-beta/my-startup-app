@@ -1,98 +1,114 @@
-﻿import { useEffect, useState } from 'react'
-import api from '../../api/axios'
-import { useAuthStore } from '../../store/authStore'
-import toast from 'react-hot-toast'
+﻿import { useEffect, useState } from 'react';
+import api from '../../api/axios';
+import { useAuthStore } from '../../store/authStore';
+import toast from 'react-hot-toast';
 
 interface Shift {
-  id: string
-  openedAt: string
-  closedAt: string | null
-  openCash: number
-  closeCash: number | null
-  totalOrders: number
-  totalRevenue: number
-  note: string | null
-  openedBy: { name: string }
-  closedBy: { name: string } | null
+  id: string;
+  openedAt: string;
+  closedAt: string | null;
+  openCash: number;
+  closeCash: number | null;
+  totalOrders: number;
+  totalRevenue: number;
+  note: string | null;
+  openedBy: { name: string };
+  closedBy: { name: string } | null;
 }
 
 export default function ShiftsPage() {
-  const user = useAuthStore((s) => s.user)
-  const [shifts, setShifts] = useState<Shift[]>([])
-  const [activeShift, setActiveShift] = useState<Shift | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [showOpen, setShowOpen] = useState(false)
-  const [showClose, setShowClose] = useState(false)
-  const [openCash, setOpenCash] = useState('')
-  const [closeCash, setCloseCash] = useState('')
-  const [note, setNote] = useState('')
-  const [saving, setSaving] = useState(false)
+  const user = useAuthStore((s) => s.user);
+  const [shifts, setShifts] = useState<Shift[]>([]);
+  const [activeShift, setActiveShift] = useState<Shift | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [showOpen, setShowOpen] = useState(false);
+  const [showClose, setShowClose] = useState(false);
+  const [openCash, setOpenCash] = useState('');
+  const [closeCash, setCloseCash] = useState('');
+  const [note, setNote] = useState('');
+  const [saving, setSaving] = useState(false);
 
-  const branchId = user?.branch?.id || ''
-  const fmt = (n: number) => new Intl.NumberFormat('vi-VN').format(n) + 'đ'
-  const fmtTime = (s: string) => new Date(s).toLocaleString('vi-VN', {
-    day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
-  })
+  const [branchId, setBranchId] = useState(user?.branch?.id || '');
+
+  useEffect(() => {
+    if (user?.branch?.id) {
+      setBranchId(user.branch.id);
+      return;
+    }
+    const token = localStorage.getItem('token');
+    import('axios').then(({ default: axios }) => {
+      axios.get('/api/branches', { headers: { Authorization: `Bearer ${token}` } }).then((r) => {
+        if (r.data.data?.[0]) setBranchId(r.data.data[0].id);
+      });
+    });
+  }, [user]);
+  const fmt = (n: number) => new Intl.NumberFormat('vi-VN').format(n) + 'đ';
+  const fmtTime = (s: string) =>
+    new Date(s).toLocaleString('vi-VN', {
+      day: '2-digit',
+      month: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
 
   const loadShifts = () => {
-    if (!branchId) return
-    api.get(`/shifts?branchId=${branchId}`)
+    if (!branchId) return;
+    api
+      .get(`/shifts?branchId=${branchId}`)
       .then((r) => {
-        const data: Shift[] = r.data.data
-        setShifts(data)
-        const active = data.find((s) => !s.closedAt)
-        setActiveShift(active || null)
+        const data: Shift[] = r.data.data;
+        setShifts(data);
+        const active = data.find((s) => !s.closedAt);
+        setActiveShift(active || null);
       })
-      .finally(() => setLoading(false))
-  }
+      .finally(() => setLoading(false));
+  };
 
-  useEffect(() => { loadShifts() }, [branchId])
+  useEffect(() => {
+    loadShifts();
+  }, [branchId]);
 
   const handleOpenShift = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setSaving(true)
+    e.preventDefault();
+    setSaving(true);
     try {
       await api.post('/shifts', {
         branchId,
         openCash: parseFloat(openCash) || 0,
-      })
-      toast.success('Mở ca thành công!')
-      setShowOpen(false)
-      setOpenCash('')
-      loadShifts()
+      });
+      toast.success('Mở ca thành công!');
+      setShowOpen(false);
+      setOpenCash('');
+      loadShifts();
     } catch (e: any) {
-      toast.error(e.response?.data?.message || 'Lỗi mở ca')
+      toast.error(e.response?.data?.message || 'Lỗi mở ca');
     } finally {
-      setSaving(false)
+      setSaving(false);
     }
-  }
+  };
 
   const handleCloseShift = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!activeShift) return
-    setSaving(true)
+    e.preventDefault();
+    if (!activeShift) return;
+    setSaving(true);
     try {
       await api.put(`/shifts/${activeShift.id}/close`, {
         closeCash: parseFloat(closeCash) || 0,
         note,
-      })
-      toast.success('Đóng ca thành công!')
-      setShowClose(false)
-      setCloseCash('')
-      setNote('')
-      loadShifts()
+      });
+      toast.success('Đóng ca thành công!');
+      setShowClose(false);
+      setCloseCash('');
+      setNote('');
+      loadShifts();
     } catch (e: any) {
-      toast.error(e.response?.data?.message || 'Lỗi đóng ca')
+      toast.error(e.response?.data?.message || 'Lỗi đóng ca');
     } finally {
-      setSaving(false)
+      setSaving(false);
     }
-  }
+  };
 
-  if (!branchId) return (
-    <div className="text-center py-20 text-gray-400">
-      Vui lòng đăng nhập bằng tài khoản Cashier.
-    </div>
-  )
+  if (!branchId) return <div className="text-center py-20 text-gray-400">Đang tải...</div>;
 
   return (
     <div className="space-y-6">
@@ -156,7 +172,9 @@ export default function ShiftsPage() {
             <h2 className="font-bold text-lg text-gray-800 mb-4">🔓 Mở ca mới</h2>
             <form onSubmit={handleOpenShift} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Tiền mặt đầu ca</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Tiền mặt đầu ca
+                </label>
                 <input
                   type="number"
                   value={openCash}
@@ -166,12 +184,18 @@ export default function ShiftsPage() {
                 />
               </div>
               <div className="flex gap-2">
-                <button type="submit" disabled={saving}
-                  className="flex-1 bg-green-500 text-white py-2.5 rounded-xl font-medium hover:bg-green-600 disabled:opacity-50">
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="flex-1 bg-green-500 text-white py-2.5 rounded-xl font-medium hover:bg-green-600 disabled:opacity-50"
+                >
                   {saving ? 'Đang mở...' : 'Mở ca'}
                 </button>
-                <button type="button" onClick={() => setShowOpen(false)}
-                  className="flex-1 bg-gray-100 text-gray-600 py-2.5 rounded-xl font-medium hover:bg-gray-200">
+                <button
+                  type="button"
+                  onClick={() => setShowOpen(false)}
+                  className="flex-1 bg-gray-100 text-gray-600 py-2.5 rounded-xl font-medium hover:bg-gray-200"
+                >
                   Huỷ
                 </button>
               </div>
@@ -192,7 +216,9 @@ export default function ShiftsPage() {
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">Doanh thu</span>
-                <span className="font-semibold text-orange-600">{fmt(activeShift.totalRevenue)}</span>
+                <span className="font-semibold text-orange-600">
+                  {fmt(activeShift.totalRevenue)}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">Tiền đầu ca</span>
@@ -201,7 +227,9 @@ export default function ShiftsPage() {
             </div>
             <form onSubmit={handleCloseShift} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Tiền mặt cuối ca</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Tiền mặt cuối ca
+                </label>
                 <input
                   type="number"
                   value={closeCash}
@@ -221,12 +249,18 @@ export default function ShiftsPage() {
                 />
               </div>
               <div className="flex gap-2">
-                <button type="submit" disabled={saving}
-                  className="flex-1 bg-red-500 text-white py-2.5 rounded-xl font-medium hover:bg-red-600 disabled:opacity-50">
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="flex-1 bg-red-500 text-white py-2.5 rounded-xl font-medium hover:bg-red-600 disabled:opacity-50"
+                >
                   {saving ? 'Đang đóng...' : 'Đóng ca'}
                 </button>
-                <button type="button" onClick={() => setShowClose(false)}
-                  className="flex-1 bg-gray-100 text-gray-600 py-2.5 rounded-xl font-medium hover:bg-gray-200">
+                <button
+                  type="button"
+                  onClick={() => setShowClose(false)}
+                  className="flex-1 bg-gray-100 text-gray-600 py-2.5 rounded-xl font-medium hover:bg-gray-200"
+                >
                   Huỷ
                 </button>
               </div>
@@ -248,8 +282,18 @@ export default function ShiftsPage() {
           <table className="w-full">
             <thead className="bg-gray-50">
               <tr>
-                {['Mở ca', 'Đóng ca', 'Tiền đầu ca', 'Tiền cuối ca', 'Đơn', 'Doanh thu', 'Trạng thái'].map((h) => (
-                  <th key={h} className="text-left text-xs font-medium text-gray-500 px-4 py-3">{h}</th>
+                {[
+                  'Mở ca',
+                  'Đóng ca',
+                  'Tiền đầu ca',
+                  'Tiền cuối ca',
+                  'Đơn',
+                  'Doanh thu',
+                  'Trạng thái',
+                ].map((h) => (
+                  <th key={h} className="text-left text-xs font-medium text-gray-500 px-4 py-3">
+                    {h}
+                  </th>
                 ))}
               </tr>
             </thead>
@@ -265,13 +309,15 @@ export default function ShiftsPage() {
                     {shift.closeCash !== null ? fmt(shift.closeCash) : '—'}
                   </td>
                   <td className="px-4 py-3 text-sm font-medium">{shift.totalOrders}</td>
-                  <td className="px-4 py-3 text-sm font-semibold text-orange-600">{fmt(shift.totalRevenue)}</td>
+                  <td className="px-4 py-3 text-sm font-semibold text-orange-600">
+                    {fmt(shift.totalRevenue)}
+                  </td>
                   <td className="px-4 py-3">
-                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                      shift.closedAt
-                        ? 'bg-gray-100 text-gray-500'
-                        : 'bg-green-100 text-green-600'
-                    }`}>
+                    <span
+                      className={`text-xs px-2 py-1 rounded-full font-medium ${
+                        shift.closedAt ? 'bg-gray-100 text-gray-500' : 'bg-green-100 text-green-600'
+                      }`}
+                    >
                       {shift.closedAt ? 'Đã đóng' : '🟢 Đang mở'}
                     </span>
                   </td>
@@ -282,5 +328,5 @@ export default function ShiftsPage() {
         )}
       </div>
     </div>
-  )
+  );
 }
