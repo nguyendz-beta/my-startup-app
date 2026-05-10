@@ -1,38 +1,52 @@
-﻿import { useEffect, useState } from 'react'
-import { QRCodeSVG } from 'qrcode.react'
-import { tableApi } from '../../api/tableApi'
-import { useAuthStore } from '../../store/authStore'
+﻿import { useEffect, useState } from 'react';
+import { QRCodeSVG } from 'qrcode.react';
+import { tableApi } from '../../api/tableApi';
+import { useAuthStore } from '../../store/authStore';
 
 interface Table {
-  id: string
-  name: string
-  capacity: number
-  status: string
+  id: string;
+  name: string;
+  capacity: number;
+  status: string;
 }
 
 export default function QROrderPage() {
-  const user = useAuthStore((s) => s.user)
-  const [tables, setTables] = useState<Table[]>([])
-  const [loading, setLoading] = useState(true)
-  const [selected, setSelected] = useState<Table | null>(null)
+  const user = useAuthStore((s) => s.user);
+  const [tables, setTables] = useState<Table[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState<Table | null>(null);
 
-  const branchId = user?.branch?.id || ''
-  const baseUrl = window.location.origin
+  const [branchId, setBranchId] = useState(user?.branch?.id || '');
 
   useEffect(() => {
-    if (!branchId) return
-    tableApi.getTables(branchId)
-      .then((r) => setTables(r.data.data))
-      .finally(() => setLoading(false))
-  }, [branchId])
+    if (user?.branch?.id) {
+      setBranchId(user.branch.id);
+      return;
+    }
+    const token = localStorage.getItem('token');
+    import('axios').then(({ default: axios }) => {
+      axios.get('/api/branches', { headers: { Authorization: `Bearer ${token}` } }).then((r) => {
+        if (r.data.data?.[0]) setBranchId(r.data.data[0].id);
+      });
+    });
+  }, [user]);
 
-  const getQRUrl = (tableId: string) =>
-    `${baseUrl}/order?branchId=${branchId}&tableId=${tableId}`
+  const baseUrl = window.location.origin;
+
+  useEffect(() => {
+    if (!branchId) return;
+    tableApi
+      .getTables(branchId)
+      .then((r) => setTables(r.data.data))
+      .finally(() => setLoading(false));
+  }, [branchId]);
+
+  const getQRUrl = (tableId: string) => `${baseUrl}/order?branchId=${branchId}&tableId=${tableId}`;
 
   const handlePrint = (table: Table) => {
-    const qrUrl = getQRUrl(table.id)
-    const printWindow = window.open('', '_blank')
-    if (!printWindow) return
+    const qrUrl = getQRUrl(table.id);
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
     printWindow.document.write(`
       <html>
         <head>
@@ -53,15 +67,10 @@ export default function QROrderPage() {
           <script>window.onload = () => window.print()</script>
         </body>
       </html>
-    `)
-    printWindow.document.close()
-  }
-
-  if (!branchId) return (
-    <div className="text-center py-20 text-gray-400">
-      Vui lòng đăng nhập bằng tài khoản Cashier để xem QR.
-    </div>
-  )
+    `);
+    printWindow.document.close();
+  };
+  if (!branchId) return <div className="text-center py-20 text-gray-400">Đang tải...</div>;
 
   return (
     <div className="space-y-6">
@@ -81,17 +90,15 @@ export default function QROrderPage() {
               onClick={() => setSelected(table)}
             >
               <div className="flex justify-center mb-3">
-                <QRCodeSVG
-                  value={getQRUrl(table.id)}
-                  size={120}
-                  fgColor="#ea580c"
-                  level="M"
-                />
+                <QRCodeSVG value={getQRUrl(table.id)} size={120} fgColor="#ea580c" level="M" />
               </div>
               <p className="font-bold text-gray-800">{table.name}</p>
               <p className="text-xs text-gray-400 mt-1">{table.capacity} người</p>
               <button
-                onClick={(e) => { e.stopPropagation(); handlePrint(table) }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handlePrint(table);
+                }}
                 className="mt-3 w-full text-xs bg-gray-100 hover:bg-orange-100 text-gray-600 hover:text-orange-600 py-1.5 rounded-lg transition-colors font-medium"
               >
                 🖨️ In QR
@@ -103,8 +110,14 @@ export default function QROrderPage() {
 
       {/* Modal xem to */}
       {selected && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setSelected(null)}>
-          <div className="bg-white rounded-2xl p-8 text-center shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={() => setSelected(null)}
+        >
+          <div
+            className="bg-white rounded-2xl p-8 text-center shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
             <h2 className="font-bold text-xl text-gray-800 mb-1">{selected.name}</h2>
             <p className="text-gray-400 text-sm mb-6">Quét mã để gọi món</p>
             <div className="flex justify-center mb-6">
@@ -135,5 +148,5 @@ export default function QROrderPage() {
         </div>
       )}
     </div>
-  )
+  );
 }

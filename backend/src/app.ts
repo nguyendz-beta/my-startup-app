@@ -11,6 +11,7 @@ import { errorMiddleware } from './middlewares/errorMiddleware';
 import dashboardRoutes from './modules/dashboard/dashboard.route';
 import branchRoutes from './modules/branches/branch.route';
 import shiftRoutes from './modules/shifts/shift.route';
+// @ts-ignore
 import reservationRoutes from './modules/reservations/reservation.route';
 
 const app = express();
