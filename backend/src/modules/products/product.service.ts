@@ -102,7 +102,8 @@ export const productService = {
   async deleteProduct(tenantId: string, productId: string) {
     const product = await prisma.product.findFirst({ where: { id: productId, tenantId } })
     if (!product) throw new Error('Sản phẩm không tồn tại')
-    return prisma.product.update({ where: { id: productId }, data: { isAvailable: false } })
+    await prisma.productVariant.deleteMany({ where: { productId } })
+    return prisma.product.delete({ where: { id: productId } })
   },
 
   // ── Variants ─────────────────────────────────────────────
@@ -126,6 +127,6 @@ export const productService = {
       where: { id: variantId, product: { tenantId } },
     })
     if (!variant) throw new Error('Variant không tồn tại')
-    return prisma.productVariant.update({ where: { id: variantId }, data: { isAvailable: false } })
+    return prisma.productVariant.delete({ where: { id: variantId } })
   },
 }
