@@ -21,6 +21,7 @@ import LoyaltyPage from '../pages/loyalty/LoyaltyPage';
 import ReservationsPage from '../pages/reservations/ReservationsPage';
 import PaymentSettingsPage from '../pages/payment-settings/PaymentSettingsPage';
 import ReadyOrdersPage from '../pages/ready-orders/ReadyOrdersPage';
+import CustomerOrderPage from '../pages/qr/CustomerOrderPage';
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const token = useAuthStore((s) => s.token);
@@ -61,6 +62,7 @@ export default function AppRoutes() {
           <Route path="/reservations" element={<ReservationsPage />} />
           <Route path="/payment-settings" element={<PaymentSettingsPage />} />
           <Route path="/ready-orders" element={<ReadyOrdersPage />} />
+          <Route path="/order" element={<CustomerOrderPage />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" />} />
