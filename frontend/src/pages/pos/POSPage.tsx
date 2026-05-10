@@ -3,6 +3,7 @@ import { productApi } from '../../api/productApi';
 import { orderApi } from '../../api/orderApi';
 import { useAuthStore } from '../../store/authStore';
 import PaymentModal from '../../components/payment/PaymentModal';
+import { printReceipt } from '../../components/receipt/ReceiptPrint';
 import toast from 'react-hot-toast';
 
 interface Product {
@@ -97,7 +98,7 @@ export default function POSPage() {
 
   const handlePaymentConfirm = async (method: string, received: number, change: number) => {
     try {
-      await orderApi.createOrder({
+      const res = await orderApi.createOrder({
         branchId,
         source: 'DINE_IN',
         autoComplete: true,
@@ -109,6 +110,36 @@ export default function POSPage() {
           unitPrice: i.unitPrice,
         })),
       });
+
+      const order = res.data.data;
+      const cartSnapshot = [...cart];
+      const totalSnapshot = total;
+
+      // In bill tự động
+      printReceipt({
+        order: {
+          orderCode: order.orderCode,
+          createdAt: order.createdAt || new Date().toISOString(),
+          source: 'DINE_IN',
+          paymentMethod: method,
+          table: order.table || null,
+          cashier: order.cashier || null,
+          items: cartSnapshot.map((i) => ({
+            name: i.name,
+            variantName: i.variantName,
+            quantity: i.quantity,
+            unitPrice: i.unitPrice,
+          })),
+          subtotal: totalSnapshot,
+          discount: 0,
+          total: totalSnapshot,
+          receivedAmount: method === 'CASH' ? received : undefined,
+          changeAmount: method === 'CASH' ? change : undefined,
+        },
+        tenantName: user?.tenant?.name || 'Quán',
+        branchName: user?.branch?.name || '',
+      });
+
       setCart([]);
       setShowPayment(false);
       toast.success(
