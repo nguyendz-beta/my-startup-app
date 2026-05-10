@@ -1,8 +1,8 @@
-FROM node:18-alpine
+FROM node:20-alpine
 WORKDIR /usr/src/app
 COPY package.json package-lock.json* ./
-RUN npm install
+RUN npm install --production=false
 COPY . .
-RUN npm run build
+RUN npx prisma generate
 EXPOSE 4000
-CMD ["node", "dist/server.js"]
+CMD ["npx", "ts-node", "--transpile-only", "src/server.ts"]

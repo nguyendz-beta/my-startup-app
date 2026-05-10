@@ -1,9 +1,0 @@
-{
-  "build": {
-    "builder": "DOCKERFILE",
-    "dockerfilePath": "Dockerfile"
-  },
-  "deploy": {
-    "startCommand": "npx ts-node --transpile-only src/server.ts"
-  }
-}
