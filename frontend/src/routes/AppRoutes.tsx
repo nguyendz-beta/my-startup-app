@@ -37,6 +37,9 @@ export default function AppRoutes() {
           <Route path="/register" element={<Register />} />
         </Route>
 
+        {/* PUBLIC — khách quét QR không cần đăng nhập */}
+        <Route path="/order" element={<CustomerOrderPage />} />
+
         <Route
           element={
             <PrivateRoute>
@@ -62,7 +65,6 @@ export default function AppRoutes() {
           <Route path="/reservations" element={<ReservationsPage />} />
           <Route path="/payment-settings" element={<PaymentSettingsPage />} />
           <Route path="/ready-orders" element={<ReadyOrdersPage />} />
-          <Route path="/order" element={<CustomerOrderPage />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" />} />
