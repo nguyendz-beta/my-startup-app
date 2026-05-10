@@ -1,6 +1,7 @@
 ﻿import { useEffect, useState } from 'react';
 import { productApi } from '../../api/productApi';
 import toast from 'react-hot-toast';
+import { useAuthStore } from '../../store/authStore';
 
 interface Variant {
   id: string;
@@ -42,6 +43,9 @@ export default function MenuPage() {
   const [addingVariant, setAddingVariant] = useState(false);
   const [editingVariant, setEditingVariant] = useState<Variant | null>(null);
   const [editVariantForm, setEditVariantForm] = useState({ name: '', priceModifier: '0' });
+
+  const user = useAuthStore((s) => s.user);
+  const canDelete = user?.role === 'OWNER' || user?.role === 'MANAGER';
 
   const loadProducts = () => {
     productApi
@@ -379,15 +383,17 @@ export default function MenuPage() {
                         >
                           Sửa
                         </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDelete(product);
-                          }}
-                          className="text-xs text-red-400 hover:text-red-600"
-                        >
-                          Xoá
-                        </button>
+                        {canDelete && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDelete(product);
+                            }}
+                            className="text-xs text-red-400 hover:text-red-600"
+                          >
+                            Xoá
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -483,12 +489,14 @@ export default function MenuPage() {
                         >
                           Sửa
                         </button>
-                        <button
-                          onClick={() => handleDeleteVariant(v.id)}
-                          className="text-xs text-red-400 hover:text-red-600"
-                        >
-                          Xoá
-                        </button>
+                        {canDelete && (
+                          <button
+                            onClick={() => handleDeleteVariant(v.id)}
+                            className="text-xs text-red-400 hover:text-red-600"
+                          >
+                            Xoá
+                          </button>
+                        )}
                       </div>
                     </div>
                   )}
