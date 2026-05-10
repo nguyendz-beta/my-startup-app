@@ -1,88 +1,103 @@
-﻿import { useEffect, useState } from 'react'
-import { productApi } from '../../api/productApi'
-import { orderApi } from '../../api/orderApi'
-import { useAuthStore } from '../../store/authStore'
-import PaymentModal from '../../components/payment/PaymentModal'
-import toast from 'react-hot-toast'
+﻿import { useEffect, useState } from 'react';
+import { productApi } from '../../api/productApi';
+import { orderApi } from '../../api/orderApi';
+import { useAuthStore } from '../../store/authStore';
+import PaymentModal from '../../components/payment/PaymentModal';
+import toast from 'react-hot-toast';
 
 interface Product {
-  id: string
-  name: string
-  basePrice: number
-  categoryId: string | null
-  imageUrl: string | null
-  variants: { id: string; name: string; priceModifier: number }[]
+  id: string;
+  name: string;
+  basePrice: number;
+  categoryId: string | null;
+  imageUrl: string | null;
+  variants: { id: string; name: string; priceModifier: number }[];
 }
-interface Category { id: string; name: string }
+interface Category {
+  id: string;
+  name: string;
+}
 interface CartItem {
-  productId: string; variantId?: string; name: string
-  variantName?: string; quantity: number; unitPrice: number
+  productId: string;
+  variantId?: string;
+  name: string;
+  variantName?: string;
+  quantity: number;
+  unitPrice: number;
 }
 
 export default function POSPage() {
-  const user = useAuthStore((s) => s.user)
-  const [categories, setCategories] = useState<Category[]>([])
-  const [products, setProducts] = useState<Product[]>([])
-  const [activeCat, setActiveCat] = useState<string>('')
-  const [cart, setCart] = useState<CartItem[]>([])
-  const [showPayment, setShowPayment] = useState(false)
+  const user = useAuthStore((s) => s.user);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [activeCat, setActiveCat] = useState<string>('');
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [showPayment, setShowPayment] = useState(false);
 
-  const branchId = user?.branch?.id || ''
+  const branchId = user?.branch?.id || '';
 
   useEffect(() => {
     productApi.getCategories().then((r) => {
-      setCategories(r.data.data)
-      if (r.data.data.length > 0) setActiveCat(r.data.data[0].id)
-    })
-    productApi.getProducts({ isAvailable: true }).then((r) => setProducts(r.data.data))
-  }, [])
+      setCategories(r.data.data);
+      if (r.data.data.length > 0) setActiveCat(r.data.data[0].id);
+    });
+    productApi.getProducts({ isAvailable: true }).then((r) => setProducts(r.data.data));
+  }, []);
 
   const filteredProducts = activeCat
     ? products.filter((p) => p.categoryId === activeCat)
-    : products
+    : products;
 
-  const addToCart = (product: Product, variant?: { id: string; name: string; priceModifier: number }) => {
-    const unitPrice = product.basePrice + (variant?.priceModifier || 0)
-    const key = product.id + (variant?.id || '')
+  const addToCart = (
+    product: Product,
+    variant?: { id: string; name: string; priceModifier: number },
+  ) => {
+    const unitPrice = product.basePrice + (variant?.priceModifier || 0);
+    const key = product.id + (variant?.id || '');
     setCart((prev) => {
-      const existing = prev.find((i) => i.productId + (i.variantId || '') === key)
-      if (existing) return prev.map((i) =>
-        i.productId + (i.variantId || '') === key ? { ...i, quantity: i.quantity + 1 } : i
-      )
-      return [...prev, {
-        productId: product.id,
-        variantId: variant?.id,
-        name: product.name,
-        variantName: variant?.name,
-        quantity: 1,
-        unitPrice,
-      }]
-    })
-  }
+      const existing = prev.find((i) => i.productId + (i.variantId || '') === key);
+      if (existing)
+        return prev.map((i) =>
+          i.productId + (i.variantId || '') === key ? { ...i, quantity: i.quantity + 1 } : i,
+        );
+      return [
+        ...prev,
+        {
+          productId: product.id,
+          variantId: variant?.id,
+          name: product.name,
+          variantName: variant?.name,
+          quantity: 1,
+          unitPrice,
+        },
+      ];
+    });
+  };
 
   const updateQty = (index: number, delta: number) => {
-    setCart((prev) => prev
-      .map((item, i) => i === index ? { ...item, quantity: item.quantity + delta } : item)
-      .filter((item) => item.quantity > 0)
-    )
-  }
+    setCart((prev) =>
+      prev
+        .map((item, i) => (i === index ? { ...item, quantity: item.quantity + delta } : item))
+        .filter((item) => item.quantity > 0),
+    );
+  };
 
-  const removeFromCart = (index: number) => setCart((prev) => prev.filter((_, i) => i !== index))
+  const removeFromCart = (index: number) => setCart((prev) => prev.filter((_, i) => i !== index));
 
-  const total = cart.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0)
-  const fmt = (n: number) => new Intl.NumberFormat('vi-VN').format(n) + 'đ'
+  const total = cart.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0);
+  const fmt = (n: number) => new Intl.NumberFormat('vi-VN').format(n) + 'đ';
 
   const handleCheckout = () => {
     if (cart.length === 0) {
-      toast.error('Giỏ hàng trống!')
-      return
+      toast.error('Giỏ hàng trống!');
+      return;
     }
-    setShowPayment(true)
-  }
+    setShowPayment(true);
+  };
 
   const handlePaymentConfirm = async (method: string, received: number, change: number) => {
     try {
-      await orderApi.createOrder({
+      const res = await orderApi.createOrder({
         branchId,
         source: 'DINE_IN',
         paymentMethod: method,
@@ -92,18 +107,20 @@ export default function POSPage() {
           quantity: i.quantity,
           unitPrice: i.unitPrice,
         })),
-      })
-      setCart([])
-      setShowPayment(false)
+      });
+      const orderId = res.data.data.id;
+      await orderApi.updateStatus(orderId, 'COMPLETED');
+      setCart([]);
+      setShowPayment(false);
       toast.success(
         change > 0
           ? `Thanh toán thành công! Tiền thối: ${fmt(change)}`
-          : 'Thanh toán thành công! 🎉'
-      )
+          : 'Thanh toán thành công! 🎉',
+      );
     } catch {
-      toast.error('Lỗi tạo đơn hàng!')
+      toast.error('Lỗi tạo đơn hàng!');
     }
-  }
+  };
 
   return (
     <div className="flex gap-4 h-full">
@@ -143,10 +160,15 @@ export default function POSPage() {
               onClick={() => addToCart(product)}
             >
               <div className="w-full h-24 bg-orange-50 rounded-lg flex items-center justify-center text-3xl mb-3 overflow-hidden">
-                {product.imageUrl
-                  ? <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover rounded-lg" />
-                  : '☕'
-                }
+                {product.imageUrl ? (
+                  <img
+                    src={product.imageUrl}
+                    alt={product.name}
+                    className="w-full h-full object-cover rounded-lg"
+                  />
+                ) : (
+                  '☕'
+                )}
               </div>
               <p className="text-sm font-medium text-gray-800 line-clamp-2">{product.name}</p>
               <p className="text-orange-600 font-semibold text-sm mt-1">{fmt(product.basePrice)}</p>
@@ -155,7 +177,10 @@ export default function POSPage() {
                   {product.variants.map((v) => (
                     <button
                       key={v.id}
-                      onClick={(e) => { e.stopPropagation(); addToCart(product, v) }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        addToCart(product, v);
+                      }}
                       className="text-xs px-2 py-1 bg-gray-100 rounded-full text-gray-600 hover:bg-orange-100"
                     >
                       {v.name}
@@ -191,17 +216,23 @@ export default function POSPage() {
                   <p className="text-xs text-orange-600">{fmt(item.unitPrice)}</p>
                 </div>
                 <div className="flex items-center gap-1">
-                  <button onClick={() => updateQty(i, -1)}
-                    className="w-6 h-6 rounded-full bg-gray-100 text-gray-600 text-sm flex items-center justify-center hover:bg-gray-200">
+                  <button
+                    onClick={() => updateQty(i, -1)}
+                    className="w-6 h-6 rounded-full bg-gray-100 text-gray-600 text-sm flex items-center justify-center hover:bg-gray-200"
+                  >
                     −
                   </button>
                   <span className="text-sm font-medium w-6 text-center">{item.quantity}</span>
-                  <button onClick={() => updateQty(i, 1)}
-                    className="w-6 h-6 rounded-full bg-orange-100 text-orange-600 text-sm flex items-center justify-center hover:bg-orange-200">
+                  <button
+                    onClick={() => updateQty(i, 1)}
+                    className="w-6 h-6 rounded-full bg-orange-100 text-orange-600 text-sm flex items-center justify-center hover:bg-orange-200"
+                  >
                     +
                   </button>
-                  <button onClick={() => removeFromCart(i)}
-                    className="w-6 h-6 rounded-full bg-red-100 text-red-500 text-xs flex items-center justify-center hover:bg-red-200 ml-1">
+                  <button
+                    onClick={() => removeFromCart(i)}
+                    className="w-6 h-6 rounded-full bg-red-100 text-red-500 text-xs flex items-center justify-center hover:bg-red-200 ml-1"
+                  >
                     ×
                   </button>
                 </div>
@@ -233,5 +264,5 @@ export default function POSPage() {
         />
       )}
     </div>
-  )
+  );
 }
