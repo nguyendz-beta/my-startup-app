@@ -23,6 +23,7 @@ const ALL_NAV_ITEMS = [
   { to: '/branches', label: 'Chi nhánh', icon: '🏪', roles: ['OWNER'] },
   { to: '/inventory', label: 'Kho hàng', icon: '📦', roles: ['OWNER', 'MANAGER'] },
   { to: '/shifts', label: 'Báo cáo ca', icon: '🕐', roles: ['OWNER', 'MANAGER', 'CASHIER'] },
+  { to: '/ready-orders', label: 'Đơn sẵn sàng', icon: '🍽️', roles: ['OWNER', 'MANAGER', 'CASHIER', 'WAITER'] },
   {
     to: '/reservations',
     label: 'Đặt bàn',
