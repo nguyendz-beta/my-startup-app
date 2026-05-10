@@ -32,6 +32,7 @@ const ALL_NAV_ITEMS = [
   { to: '/loyalty', label: 'Khách hàng', icon: '🎁', roles: ['OWNER', 'MANAGER', 'CASHIER'] },
   { to: '/qr', label: 'QR Order', icon: '📱', roles: ['OWNER', 'MANAGER'] },
   { to: '/reports', label: 'Báo cáo', icon: '📈', roles: ['OWNER', 'MANAGER'] },
+  { to: '/payment-settings', label: 'Cài đặt TT', icon: '💳', roles: ['OWNER'] },
   {
     to: '/profile',
     label: 'Tài khoản',
@@ -101,4 +102,3 @@ export default function Sidebar() {
     </aside>
   );
 }
-
