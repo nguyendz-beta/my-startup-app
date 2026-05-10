@@ -44,7 +44,10 @@ export default function KitchenPage() {
 
   const loadOrders = () => {
     if (!branchId) return;
-    orderApi.getOrders(branchId, { status: 'PENDING' }).then((r) => setOrders(r.data.data));
+   Promise.all([
+  orderApi.getOrders(branchId, { status: 'PENDING' }),
+  orderApi.getOrders(branchId, { status: 'PREPARING' }),
+]).then(([r1, r2]) => setOrders([...r1.data.data, ...r2.data.data]));
   };
 
   useEffect(() => {
