@@ -38,7 +38,16 @@ export default function ReservationsPage() {
     reservedAt: '', note: ''
   })
 
-  const branchId = user?.branch?.id || ''
+ const [branchId, setBranchId] = useState(user?.branch?.id || '')
+
+useEffect(() => {
+  if (user?.branch?.id) { setBranchId(user.branch.id); return; }
+  const token = localStorage.getItem('token');
+  import('axios').then(({ default: axios }) => {
+    axios.get('/api/branches', { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => { if (r.data.data?.[0]) setBranchId(r.data.data[0].id); });
+  });
+}, [user]); 
 
   const fmtTime = (s: string) => new Date(s).toLocaleString('vi-VN', {
     day: '2-digit', month: '2-digit',
@@ -97,10 +106,8 @@ export default function ReservationsPage() {
     return d.toDateString() === now.toDateString()
   })
 
-  if (!branchId) return (
-    <div className="text-center py-20 text-gray-400">
-      Vui lòng đăng nhập bằng tài khoản Cashier.
-    </div>
+ if (!branchId) return (
+    <div className="text-center py-20 text-gray-400">Đang tải...</div>
   )
 
   return (
