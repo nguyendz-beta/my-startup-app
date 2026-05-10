@@ -10,6 +10,7 @@ import uploadRoutes from './modules/upload/upload.routes';
 import { errorMiddleware } from './middlewares/errorMiddleware';
 import dashboardRoutes from './modules/dashboard/dashboard.route';
 import branchRoutes from './modules/branches/branch.route';
+import shiftRoutes from './modules/shifts/shift.route';
 
 const app = express();
 app.use(cors());
@@ -29,5 +30,6 @@ app.use('/api/upload', uploadRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use(errorMiddleware);
 app.use('/api/branches', branchRoutes);
+app.use('/api/shifts', shiftRoutes);
 
 export default app;
