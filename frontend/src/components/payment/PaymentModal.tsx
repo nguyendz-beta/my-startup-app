@@ -12,9 +12,23 @@ const PAYMENT_METHODS: PaymentMethod[] = [
   { id: 'CASH', label: 'Tiền mặt', icon: '💵', color: 'border-green-400 bg-green-50' },
   { id: 'CARD', label: 'Thẻ ngân hàng', icon: '💳', color: 'border-blue-400 bg-blue-50' },
   { id: 'MOMO', label: 'MoMo', icon: '🟣', color: 'border-pink-400 bg-pink-50' },
-  { id: 'VNPAY', label: 'VNPay', icon: '🔵', color: 'border-blue-600 bg-blue-50' },
-  { id: 'TRANSFER', label: 'Chuyển khoản', icon: '🏦', color: 'border-purple-400 bg-purple-50' },
+  { id: 'VNPAY', label: 'Chuyển khoản', icon: '🏦', color: 'border-purple-400 bg-purple-50' },
 ];
+
+// Thông tin thanh toán
+const MOMO_PHONE = '0384566859';
+const MOMO_NAME = 'Dang Minh Nguyen';
+const BANK_BIN = '970422'; // MB Bank BIN
+const BANK_ACCOUNT = '0384566859';
+const BANK_NAME = 'Dang Minh Nguyen';
+
+const getMomoQR = (amount: number) =>
+  `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(
+    `2|99|${MOMO_PHONE}|${MOMO_NAME}||0|0|${amount}|Thanh toan don hang`
+  )}`;
+
+const getBankQR = (amount: number) =>
+  `https://img.vietqr.io/image/${BANK_BIN}-${BANK_ACCOUNT}-compact2.png?amount=${amount}&addInfo=Thanh%20toan%20don%20hang&accountName=${encodeURIComponent(BANK_NAME)}`;
 
 interface Props {
   total: number;
@@ -29,7 +43,6 @@ export default function PaymentModal({ total, onClose, onConfirm }: Props) {
 
   const receivedNum = parseFloat(received) || 0;
   const change = Math.max(0, receivedNum - total);
-
   const fmt = (n: number) => new Intl.NumberFormat('vi-VN').format(n) + 'đ';
 
   const quickAmounts = [
@@ -37,9 +50,7 @@ export default function PaymentModal({ total, onClose, onConfirm }: Props) {
     Math.ceil(total / 10000) * 10000,
     Math.ceil(total / 50000) * 50000,
     Math.ceil(total / 100000) * 100000,
-  ]
-    .filter((v, i, arr) => arr.indexOf(v) === i)
-    .slice(0, 4);
+  ].filter((v, i, arr) => arr.indexOf(v) === i).slice(0, 4);
 
   const handleConfirm = async () => {
     if (confirming) return;
@@ -66,9 +77,7 @@ export default function PaymentModal({ total, onClose, onConfirm }: Props) {
       >
         <div className="flex items-center justify-between mb-5">
           <h2 className="font-bold text-xl text-gray-800">Thanh toán</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl">
-            ×
-          </button>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl">×</button>
         </div>
 
         <div className="bg-orange-50 rounded-xl p-4 mb-5 text-center">
@@ -77,7 +86,7 @@ export default function PaymentModal({ total, onClose, onConfirm }: Props) {
         </div>
 
         <p className="text-sm font-medium text-gray-700 mb-2">Phương thức thanh toán</p>
-        <div className="grid grid-cols-3 gap-2 mb-5">
+        <div className="grid grid-cols-4 gap-2 mb-5">
           {PAYMENT_METHODS.map((m) => (
             <button
               key={m.id}
@@ -95,6 +104,7 @@ export default function PaymentModal({ total, onClose, onConfirm }: Props) {
           ))}
         </div>
 
+        {/* Tiền mặt */}
         {method === 'CASH' && (
           <div className="mb-4">
             <p className="text-sm font-medium text-gray-700 mb-2">Tiền khách đưa</p>
@@ -126,13 +136,46 @@ export default function PaymentModal({ total, onClose, onConfirm }: Props) {
           </div>
         )}
 
-        {['MOMO', 'VNPAY'].includes(method) && (
-          <div className="mb-4 text-center py-6 bg-gray-50 rounded-xl">
-            <div className="text-4xl mb-2">📱</div>
-            <p className="text-sm text-gray-500">Khách quét mã QR để thanh toán</p>
-            <p className="text-xs text-gray-400 mt-1">
-              {method === 'MOMO' ? 'MoMo' : 'VNPay'} · {fmt(total)}
-            </p>
+        {/* Thẻ ngân hàng */}
+        {method === 'CARD' && (
+          <div className="mb-4 text-center py-6 bg-blue-50 rounded-xl">
+            <div className="text-4xl mb-2">💳</div>
+            <p className="text-sm text-blue-700 font-medium">Quẹt thẻ tại máy POS</p>
+            <p className="text-xs text-blue-400 mt-1">Xác nhận sau khi máy báo thành công</p>
+          </div>
+        )}
+
+        {/* MoMo QR */}
+        {method === 'MOMO' && (
+          <div className="mb-4 text-center">
+            <div className="bg-pink-50 rounded-xl p-4">
+              <p className="text-sm font-semibold text-pink-700 mb-3">🟣 Quét mã MoMo</p>
+              <img
+                src={getMomoQR(total)}
+                alt="MoMo QR"
+                className="w-48 h-48 mx-auto rounded-lg border-2 border-pink-200"
+              />
+              <p className="text-sm font-bold text-gray-800 mt-3">{MOMO_NAME}</p>
+              <p className="text-xs text-gray-500">{MOMO_PHONE}</p>
+              <p className="text-lg font-bold text-pink-600 mt-1">{fmt(total)}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Chuyển khoản MB Bank QR */}
+        {method === 'VNPAY' && (
+          <div className="mb-4 text-center">
+            <div className="bg-purple-50 rounded-xl p-4">
+              <p className="text-sm font-semibold text-purple-700 mb-3">🏦 Quét mã chuyển khoản MB Bank</p>
+              <img
+                src={getBankQR(total)}
+                alt="Bank QR"
+                className="w-48 h-48 mx-auto rounded-lg border-2 border-purple-200"
+              />
+              <p className="text-sm font-bold text-gray-800 mt-3">{BANK_NAME}</p>
+              <p className="text-xs text-gray-500">MB Bank · {BANK_ACCOUNT}</p>
+              <p className="text-lg font-bold text-purple-600 mt-1">{fmt(total)}</p>
+            </div>
           </div>
         )}
 
