@@ -7,7 +7,7 @@ export const tableController = {
   async getTables(req: Request, res: Response) {
     try {
       const branchId = str(req.params.branchId) || (req as any).user?.branchId
-      if (!branchId) return res.status(400).json({ success: false, message: 'Thiếu branchId' })
+      if (!branchId) return res.status(400).json({ success: false, message: 'Thieu branchId' })
       const data = await tableService.getTables(branchId)
       return res.json({ success: true, data })
     } catch (e: any) {
@@ -39,7 +39,7 @@ export const tableController = {
     try {
       const branchId = str(req.params.branchId) || (req as any).user?.branchId
       await tableService.deleteTable(branchId, str(req.params.tableId))
-      return res.json({ success: true, message: 'Đã xoá bàn' })
+      return res.json({ success: true, message: 'Da xoa ban' })
     } catch (e: any) {
       return res.status(400).json({ success: false, message: e.message })
     }
