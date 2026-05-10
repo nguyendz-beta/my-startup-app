@@ -168,15 +168,12 @@ export default function POSPage() {
         </div>
       </div>
 
-      {/* Cart */}
+      {/* Giỏ hàng */}
       <div className="w-80 bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col">
         <div className="p-4 border-b border-gray-100 flex items-center justify-between">
           <h2 className="font-semibold text-gray-700">🛒 Đơn hàng</h2>
           {cart.length > 0 && (
-            <button
-              onClick={() => setCart([])}
-              className="text-xs text-red-400 hover:text-red-600"
-            >
+            <button onClick={() => setCart([])} className="text-xs text-red-400 hover:text-red-600">
               Xoá hết
             </button>
           )}
@@ -190,29 +187,21 @@ export default function POSPage() {
               <div key={i} className="flex items-center justify-between gap-2">
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-700 truncate">{item.name}</p>
-                  {item.variantName && (
-                    <p className="text-xs text-gray-400">{item.variantName}</p>
-                  )}
+                  {item.variantName && <p className="text-xs text-gray-400">{item.variantName}</p>}
                   <p className="text-xs text-orange-600">{fmt(item.unitPrice)}</p>
                 </div>
                 <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => updateQty(i, -1)}
-                    className="w-6 h-6 rounded-full bg-gray-100 text-gray-600 text-sm flex items-center justify-center hover:bg-gray-200"
-                  >
+                  <button onClick={() => updateQty(i, -1)}
+                    className="w-6 h-6 rounded-full bg-gray-100 text-gray-600 text-sm flex items-center justify-center hover:bg-gray-200">
                     −
                   </button>
                   <span className="text-sm font-medium w-6 text-center">{item.quantity}</span>
-                  <button
-                    onClick={() => updateQty(i, 1)}
-                    className="w-6 h-6 rounded-full bg-orange-100 text-orange-600 text-sm flex items-center justify-center hover:bg-orange-200"
-                  >
+                  <button onClick={() => updateQty(i, 1)}
+                    className="w-6 h-6 rounded-full bg-orange-100 text-orange-600 text-sm flex items-center justify-center hover:bg-orange-200">
                     +
                   </button>
-                  <button
-                    onClick={() => removeFromCart(i)}
-                    className="w-6 h-6 rounded-full bg-red-100 text-red-500 text-xs flex items-center justify-center hover:bg-red-200 ml-1"
-                  >
+                  <button onClick={() => removeFromCart(i)}
+                    className="w-6 h-6 rounded-full bg-red-100 text-red-500 text-xs flex items-center justify-center hover:bg-red-200 ml-1">
                     ×
                   </button>
                 </div>
@@ -226,7 +215,6 @@ export default function POSPage() {
             <span>Tổng cộng</span>
             <span className="text-orange-600">{fmt(total)}</span>
           </div>
-
           <button
             onClick={handleCheckout}
             disabled={cart.length === 0}
@@ -237,7 +225,6 @@ export default function POSPage() {
         </div>
       </div>
 
-      {/* Payment Modal */}
       {showPayment && (
         <PaymentModal
           total={total}
