@@ -101,7 +101,7 @@ export default function POSPage() {
       const res = await orderApi.createOrder({
         branchId,
         source: 'DINE_IN',
-        autoComplete: true,
+      
         paymentMethod: method,
         items: cart.map((i) => ({
           productId: i.productId,

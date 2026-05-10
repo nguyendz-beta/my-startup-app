@@ -9,6 +9,7 @@ interface Order {
   source: string;
   status: string;
   createdAt: string;
+  paymentMethod?: string;
   table: { name: string } | null;
   items: {
     quantity: number;
@@ -30,38 +31,32 @@ export default function KitchenPage() {
   const [branchId, setBranchId] = useState(user?.branch?.id || '');
 
   useEffect(() => {
-    if (user?.branch?.id) {
-      setBranchId(user.branch.id);
-      return;
-    }
+    if (user?.branch?.id) { setBranchId(user.branch.id); return; }
     const token = localStorage.getItem('token');
     import('axios').then(({ default: axios }) => {
-      axios.get('/api/branches', { headers: { Authorization: `Bearer ${token}` } }).then((r) => {
-        if (r.data.data?.[0]) setBranchId(r.data.data[0].id);
-      });
+      axios.get('/api/branches', { headers: { Authorization: `Bearer ${token}` } })
+        .then((r) => { if (r.data.data?.[0]) setBranchId(r.data.data[0].id); });
     });
   }, [user]);
 
   const loadOrders = () => {
     if (!branchId) return;
-   Promise.all([
-  orderApi.getOrders(branchId, { status: 'PENDING' }),
-  orderApi.getOrders(branchId, { status: 'PREPARING' }),
-]).then(([r1, r2]) => setOrders([...r1.data.data, ...r2.data.data]));
+    Promise.all([
+      orderApi.getOrders(branchId, { status: 'PENDING' }),
+      orderApi.getOrders(branchId, { status: 'PREPARING' }),
+    ]).then(([r1, r2]) => setOrders([...r1.data.data, ...r2.data.data]));
   };
 
   useEffect(() => {
+    if (!branchId) return;
     loadOrders();
 
     const token = localStorage.getItem('token');
     const socket = io('http://localhost:4000', { auth: { token } });
-
     socket.on('order:new', () => loadOrders());
     socket.on('order:status_changed', () => loadOrders());
 
-    return () => {
-      socket.disconnect();
-    };
+    return () => { socket.disconnect(); };
   }, [branchId]);
 
   const handleReady = async (orderId: string) => {
@@ -79,7 +74,9 @@ export default function KitchenPage() {
     return diff < 1 ? 'Vừa xong' : `${diff} phút trước`;
   };
 
-  if (!branchId) return <div className="text-center py-20 text-gray-400">Đang tải...</div>;
+  if (!branchId) return (
+    <div className="text-center py-20 text-gray-400">Đang tải...</div>
+  );
 
   return (
     <div className="space-y-4">
@@ -88,9 +85,7 @@ export default function KitchenPage() {
           <h1 className="text-2xl font-bold text-gray-800">🍳 Màn hình bếp</h1>
           <p className="text-gray-500 text-sm">{orders.length} đơn đang chờ</p>
         </div>
-        <button onClick={loadOrders} className="text-sm text-orange-500 hover:underline">
-          ↻ Làm mới
-        </button>
+        <button onClick={loadOrders} className="text-sm text-orange-500 hover:underline">↻ Làm mới</button>
       </div>
 
       {orders.length === 0 ? (
@@ -98,22 +93,24 @@ export default function KitchenPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {orders.map((order) => (
-            <div
-              key={order.id}
-              className={`rounded-xl border-2 p-4 ${STATUS_COLOR[order.status] || 'border-gray-200 bg-white'}`}
-            >
+            <div key={order.id} className={`rounded-xl border-2 p-4 ${STATUS_COLOR[order.status] || 'border-gray-200 bg-white'}`}>
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <span className="font-mono font-bold text-xl text-gray-800">
-                    #{order.orderCode}
-                  </span>
+                  <span className="font-mono font-bold text-xl text-gray-800">#{order.orderCode}</span>
                   {order.table && (
                     <span className="text-xs bg-white px-2 py-0.5 rounded-full text-gray-600 border">
                       {order.table.name}
                     </span>
                   )}
                 </div>
-                <span className="text-xs text-gray-400">{fmtTime(order.createdAt)}</span>
+                <div className="flex items-center gap-2">
+                  {order.paymentMethod && (
+                    <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">
+                      💰 Đã TT
+                    </span>
+                  )}
+                  <span className="text-xs text-gray-400">{fmtTime(order.createdAt)}</span>
+                </div>
               </div>
 
               <div className="space-y-2 mb-4">
@@ -125,13 +122,9 @@ export default function KitchenPage() {
                     <div>
                       <p className="text-sm font-medium text-gray-800">
                         {item.product.name}
-                        {item.variant && (
-                          <span className="text-gray-400"> · {item.variant.name}</span>
-                        )}
+                        {item.variant && <span className="text-gray-400"> · {item.variant.name}</span>}
                       </p>
-                      {item.note && (
-                        <p className="text-xs text-orange-600 italic">📝 {item.note}</p>
-                      )}
+                      {item.note && <p className="text-xs text-orange-600 italic">📝 {item.note}</p>}
                     </div>
                   </div>
                 ))}
@@ -139,18 +132,14 @@ export default function KitchenPage() {
 
               <div className="flex gap-2">
                 {order.status === 'PENDING' && (
-                  <button
-                    onClick={() => handlePreparing(order.id)}
-                    className="flex-1 bg-purple-500 text-white py-2 rounded-lg text-sm font-medium hover:bg-purple-600"
-                  >
+                  <button onClick={() => handlePreparing(order.id)}
+                    className="flex-1 bg-purple-500 text-white py-2 rounded-lg text-sm font-medium hover:bg-purple-600">
                     🔥 Bắt đầu làm
                   </button>
                 )}
                 {order.status === 'PREPARING' && (
-                  <button
-                    onClick={() => handleReady(order.id)}
-                    className="flex-1 bg-green-500 text-white py-2 rounded-lg text-sm font-medium hover:bg-green-600"
-                  >
+                  <button onClick={() => handleReady(order.id)}
+                    className="flex-1 bg-green-500 text-white py-2 rounded-lg text-sm font-medium hover:bg-green-600">
                     ✅ Xong
                   </button>
                 )}
