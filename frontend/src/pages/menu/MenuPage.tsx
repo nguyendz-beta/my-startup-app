@@ -113,10 +113,14 @@ export default function MenuPage() {
 
   const handleDelete = async (product: Product) => {
     if (!confirm(`Xoá "${product.name}"?`)) return;
-    await productApi.deleteProduct(product.id);
-    toast.success('Đã xoá sản phẩm');
-    setSelected(null);
-    loadProducts();
+    try {
+      await productApi.deleteProduct(product.id);
+      toast.success('Đã xoá sản phẩm');
+      setSelected(null);
+      setProducts((prev) => prev.filter((p) => p.id !== product.id));
+    } catch (e: any) {
+      toast.error(e.response?.data?.message || 'Lỗi xoá sản phẩm');
+    }
   };
 
   const handleAddVariant = async (e: React.FormEvent) => {
