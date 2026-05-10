@@ -30,8 +30,8 @@ export default function QROrderPage() {
       });
     });
   }, [user]);
-
-  const baseUrl = window.location.origin;
+  
+const baseUrl = 'http://192.168.1.186:5175'
 
   useEffect(() => {
     if (!branchId) return;

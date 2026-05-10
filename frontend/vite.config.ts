@@ -6,8 +6,9 @@ export default defineConfig({
     outDir: 'dist',
     sourcemap: false,
   },
-  server: {
+ server: {
     port: 5175,
+    host: true,   // thêm dòng này
     proxy: {
       '/api': {
         target: 'http://localhost:4000',
