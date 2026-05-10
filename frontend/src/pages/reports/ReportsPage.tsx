@@ -1,39 +1,53 @@
-﻿import { useEffect, useState } from 'react'
-import api from '../../api/axios'
-import { useAuthStore } from '../../store/authStore'
+﻿import { useEffect, useState } from 'react';
+import api from '../../api/axios';
+import { useAuthStore } from '../../store/authStore';
 
 interface DayRevenue {
-  date: string
-  revenue: number
-  orders: number
+  date: string;
+  revenue: number;
+  orders: number;
 }
 
 export default function ReportsPage() {
-  const user = useAuthStore((s) => s.user)
-  const [data, setData] = useState<DayRevenue[]>([])
-  const [loading, setLoading] = useState(true)
-  const [range, setRange] = useState('7')
-  const branchId = user?.branch?.id || ''
+  const user = useAuthStore((s) => s.user);
+  const [data, setData] = useState<DayRevenue[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [range, setRange] = useState('7');
+  const [branchId, setBranchId] = useState(user?.branch?.id || '');
+
+  useEffect(() => {
+    if (user?.branch?.id) {
+      setBranchId(user.branch.id);
+      return;
+    }
+    const token = localStorage.getItem('token');
+    import('axios').then(({ default: axios }) => {
+      axios.get('/api/branches', { headers: { Authorization: `Bearer ${token}` } }).then((r) => {
+        if (r.data.data?.[0]) setBranchId(r.data.data[0].id);
+      });
+    });
+  }, [user]);
 
   const loadData = () => {
-    if (!branchId) return
-    const end = new Date().toISOString().split('T')[0]
-    const start = new Date(Date.now() - parseInt(range) * 86400000).toISOString().split('T')[0]
-    api.get(`/dashboard/revenue?branchId=${branchId}&startDate=${start}&endDate=${end}`)
+    if (!branchId) return;
+    const end = new Date().toISOString().split('T')[0];
+    const start = new Date(Date.now() - parseInt(range) * 86400000).toISOString().split('T')[0];
+    api
+      .get(`/dashboard/revenue?branchId=${branchId}&startDate=${start}&endDate=${end}`)
       .then((r) => setData(r.data.data))
-      .finally(() => setLoading(false))
-  }
+      .finally(() => setLoading(false));
+  };
 
-  useEffect(() => { loadData() }, [range, branchId])
+  useEffect(() => {
+    loadData();
+  }, [range, branchId]);
 
-  const fmt = (n: number) => new Intl.NumberFormat('vi-VN').format(n) + 'đ'
-  const totalRevenue = data.reduce((s, d) => s + Number(d.revenue), 0)
-  const totalOrders = data.reduce((s, d) => s + Number(d.orders), 0)
-  const maxRevenue = Math.max(...data.map((d) => Number(d.revenue)), 1)
+  const fmt = (n: number) => new Intl.NumberFormat('vi-VN').format(n) + 'đ';
+  const totalRevenue = data.reduce((s, d) => s + Number(d.revenue), 0);
+  const totalOrders = data.reduce((s, d) => s + Number(d.orders), 0);
+  const maxRevenue = Math.max(...data.map((d) => Number(d.revenue)), 1);
 
-  if (!branchId) return (
-    <div className="text-center py-20 text-gray-400">Vui lòng đăng nhập bằng tài khoản Cashier.</div>
-  )
+  if (!branchId) return <div className="text-center py-20 text-gray-400">Đang tải...</div>;
 
   return (
     <div className="space-y-6">
@@ -74,14 +88,19 @@ export default function ReportsPage() {
             {data.map((d) => (
               <div key={d.date} className="flex items-center gap-3">
                 <span className="text-xs text-gray-400 w-20 flex-shrink-0">
-                  {new Date(d.date).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })}
+                  {new Date(d.date).toLocaleDateString('vi-VN', {
+                    day: '2-digit',
+                    month: '2-digit',
+                  })}
                 </span>
                 <div className="flex-1 bg-gray-100 rounded-full h-6 overflow-hidden">
                   <div
                     className="bg-orange-400 h-full rounded-full flex items-center px-2"
                     style={{ width: `${(Number(d.revenue) / maxRevenue) * 100}%`, minWidth: '2%' }}
                   >
-                    <span className="text-xs text-white font-medium truncate">{fmt(Number(d.revenue))}</span>
+                    <span className="text-xs text-white font-medium truncate">
+                      {fmt(Number(d.revenue))}
+                    </span>
                   </div>
                 </div>
                 <span className="text-xs text-gray-400 w-12 text-right">{d.orders} đơn</span>
@@ -91,5 +110,5 @@ export default function ReportsPage() {
         )}
       </div>
     </div>
-  )
+  );
 }
