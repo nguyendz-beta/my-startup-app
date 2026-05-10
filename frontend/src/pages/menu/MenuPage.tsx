@@ -23,6 +23,15 @@ interface Category {
   name: string;
 }
 
+const isDrink = (categoryName?: string | null) => {
+  if (!categoryName) return false;
+  const n = categoryName.toLowerCase();
+  return n.includes('uống') || n.includes('cafe') || n.includes('cà phê') ||
+    n.includes('ca phe') || n.includes('trà') || n.includes('tra') ||
+    n.includes('nước') || n.includes('nuoc') || n.includes('tea') ||
+    n.includes('juice') || n.includes('sinh tố');
+};
+
 export default function MenuPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -185,6 +194,9 @@ export default function MenuPage() {
 
   const fmt = (n: number) => new Intl.NumberFormat('vi-VN').format(n) + 'đ';
   const filtered = products.filter((p) => p.name.toLowerCase().includes(search.toLowerCase()));
+  const sizeSuggestions = isDrink(selected?.category?.name)
+    ? ['S', 'M', 'L', 'XL']
+    : ['Nhỏ', 'Vừa', 'Lớn'];
 
   return (
     <div className="flex gap-4 h-full">
@@ -216,9 +228,7 @@ export default function MenuPage() {
             </h2>
             <form onSubmit={handleSave} className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Tên sản phẩm *
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tên sản phẩm *</label>
                 <input
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -247,9 +257,7 @@ export default function MenuPage() {
                 >
                   <option value="">-- Chọn danh mục --</option>
                   {categories.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
+                    <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
                 </select>
               </div>
@@ -281,10 +289,7 @@ export default function MenuPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    setShowForm(false);
-                    setEditing(null);
-                  }}
+                  onClick={() => { setShowForm(false); setEditing(null); }}
                   className="bg-gray-100 text-gray-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-200"
                 >
                   Huỷ
@@ -302,9 +307,7 @@ export default function MenuPage() {
               <thead className="bg-gray-50 border-b border-gray-100">
                 <tr>
                   {['Sản phẩm', 'Danh mục', 'Giá', 'Size', 'Trạng thái', 'Thao tác'].map((h) => (
-                    <th key={h} className="text-left text-xs font-medium text-gray-500 px-4 py-3">
-                      {h}
-                    </th>
+                    <th key={h} className="text-left text-xs font-medium text-gray-500 px-4 py-3">{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -319,14 +322,8 @@ export default function MenuPage() {
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center text-lg overflow-hidden">
                           {product.imageUrl ? (
-                            <img
-                              src={product.imageUrl}
-                              alt=""
-                              className="w-full h-full object-cover rounded-lg"
-                            />
-                          ) : (
-                            '☕'
-                          )}
+                            <img src={product.imageUrl} alt="" className="w-full h-full object-cover rounded-lg" />
+                          ) : ('☕')}
                         </div>
                         <p className="text-sm font-medium text-gray-800">{product.name}</p>
                       </div>
@@ -337,9 +334,7 @@ export default function MenuPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <span className="text-sm font-medium text-orange-600">
-                        {fmt(product.basePrice)}
-                      </span>
+                      <span className="text-sm font-medium text-orange-600">{fmt(product.basePrice)}</span>
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex gap-1 flex-wrap">
@@ -347,10 +342,7 @@ export default function MenuPage() {
                           <span className="text-xs text-gray-300">—</span>
                         ) : (
                           product.variants.map((v) => (
-                            <span
-                              key={v.id}
-                              className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full"
-                            >
+                            <span key={v.id} className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">
                               {v.name}
                             </span>
                           ))
@@ -359,10 +351,7 @@ export default function MenuPage() {
                     </td>
                     <td className="px-4 py-3">
                       <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleToggle(product);
-                        }}
+                        onClick={(e) => { e.stopPropagation(); handleToggle(product); }}
                         className={`text-xs px-3 py-1 rounded-full font-medium transition-colors ${
                           product.isAvailable
                             ? 'bg-green-100 text-green-600 hover:bg-green-200'
@@ -375,20 +364,14 @@ export default function MenuPage() {
                     <td className="px-4 py-3">
                       <div className="flex gap-2">
                         <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openEdit(product);
-                          }}
+                          onClick={(e) => { e.stopPropagation(); openEdit(product); }}
                           className="text-xs text-blue-500 hover:text-blue-700 font-medium"
                         >
                           Sửa
                         </button>
                         {canDelete && (
                           <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDelete(product);
-                            }}
+                            onClick={(e) => { e.stopPropagation(); handleDelete(product); }}
                             className="text-xs text-red-400 hover:text-red-600"
                           >
                             Xoá
@@ -411,12 +394,7 @@ export default function MenuPage() {
               <h2 className="font-semibold text-gray-800 text-sm">Quản lý size</h2>
               <p className="text-xs text-gray-400 mt-0.5">{selected.name}</p>
             </div>
-            <button
-              onClick={() => setSelected(null)}
-              className="text-gray-400 hover:text-gray-600 text-xl"
-            >
-              ×
-            </button>
+            <button onClick={() => setSelected(null)} className="text-gray-400 hover:text-gray-600 text-xl">×</button>
           </div>
 
           <div className="flex-1 overflow-auto p-4 space-y-2">
@@ -426,15 +404,10 @@ export default function MenuPage() {
               selected.variants.map((v) => (
                 <div key={v.id}>
                   {editingVariant?.id === v.id ? (
-                    <form
-                      onSubmit={handleEditVariant}
-                      className="bg-orange-50 rounded-lg p-3 space-y-2"
-                    >
+                    <form onSubmit={handleEditVariant} className="bg-orange-50 rounded-lg p-3 space-y-2">
                       <input
                         value={editVariantForm.name}
-                        onChange={(e) =>
-                          setEditVariantForm({ ...editVariantForm, name: e.target.value })
-                        }
+                        onChange={(e) => setEditVariantForm({ ...editVariantForm, name: e.target.value })}
                         className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs focus:outline-none"
                         placeholder="Tên size"
                         required
@@ -442,27 +415,13 @@ export default function MenuPage() {
                       <input
                         type="number"
                         value={editVariantForm.priceModifier}
-                        onChange={(e) =>
-                          setEditVariantForm({ ...editVariantForm, priceModifier: e.target.value })
-                        }
+                        onChange={(e) => setEditVariantForm({ ...editVariantForm, priceModifier: e.target.value })}
                         className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs focus:outline-none"
                         placeholder="Chênh lệch giá"
                       />
                       <div className="flex gap-1">
-                        <button
-                          type="submit"
-                          disabled={saving}
-                          className="flex-1 bg-orange-500 text-white py-1 rounded text-xs font-medium"
-                        >
-                          Lưu
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setEditingVariant(null)}
-                          className="flex-1 bg-gray-100 text-gray-600 py-1 rounded text-xs"
-                        >
-                          Huỷ
-                        </button>
+                        <button type="submit" disabled={saving} className="flex-1 bg-orange-500 text-white py-1 rounded text-xs font-medium">Lưu</button>
+                        <button type="button" onClick={() => setEditingVariant(null)} className="flex-1 bg-gray-100 text-gray-600 py-1 rounded text-xs">Huỷ</button>
                       </div>
                     </form>
                   ) : (
@@ -471,31 +430,19 @@ export default function MenuPage() {
                         <p className="text-sm font-medium text-gray-700">{v.name}</p>
                         {v.priceModifier !== 0 && (
                           <p className="text-xs text-gray-400">
-                            {v.priceModifier > 0 ? '+' : ''}
-                            {fmt(v.priceModifier)}
+                            {v.priceModifier > 0 ? '+' : ''}{fmt(v.priceModifier)}
                           </p>
                         )}
                       </div>
                       <div className="flex gap-2">
                         <button
-                          onClick={() => {
-                            setEditingVariant(v);
-                            setEditVariantForm({
-                              name: v.name,
-                              priceModifier: v.priceModifier.toString(),
-                            });
-                          }}
+                          onClick={() => { setEditingVariant(v); setEditVariantForm({ name: v.name, priceModifier: v.priceModifier.toString() }); }}
                           className="text-xs text-blue-500 hover:text-blue-700"
                         >
                           Sửa
                         </button>
                         {canDelete && (
-                          <button
-                            onClick={() => handleDeleteVariant(v.id)}
-                            className="text-xs text-red-400 hover:text-red-600"
-                          >
-                            Xoá
-                          </button>
+                          <button onClick={() => handleDeleteVariant(v.id)} className="text-xs text-red-400 hover:text-red-600">Xoá</button>
                         )}
                       </div>
                     </div>
@@ -512,31 +459,34 @@ export default function MenuPage() {
                   value={variantForm.name}
                   onChange={(e) => setVariantForm({ ...variantForm, name: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
-                  placeholder="Tên size (VD: Nhỏ, Vừa, Lớn)"
+                  placeholder={isDrink(selected?.category?.name) ? 'VD: S, M, L, XL' : 'VD: Nhỏ, Vừa, Lớn'}
                   required
                 />
+                <div className="flex gap-1 flex-wrap">
+                  <p className="w-full text-xs text-gray-400 mb-0.5">Gợi ý:</p>
+                  {sizeSuggestions.map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => setVariantForm({ ...variantForm, name: s })}
+                      className="text-xs px-2.5 py-1 bg-gray-100 hover:bg-orange-100 hover:text-orange-600 rounded-full transition-colors"
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
                 <input
                   type="number"
                   value={variantForm.priceModifier}
-                  onChange={(e) =>
-                    setVariantForm({ ...variantForm, priceModifier: e.target.value })
-                  }
+                  onChange={(e) => setVariantForm({ ...variantForm, priceModifier: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
                   placeholder="Chênh lệch giá (0 = không đổi)"
                 />
                 <div className="flex gap-2">
-                  <button
-                    type="submit"
-                    disabled={saving}
-                    className="flex-1 bg-orange-500 text-white py-2 rounded-lg text-sm font-medium hover:bg-orange-600 disabled:opacity-50"
-                  >
+                  <button type="submit" disabled={saving} className="flex-1 bg-orange-500 text-white py-2 rounded-lg text-sm font-medium hover:bg-orange-600 disabled:opacity-50">
                     {saving ? '...' : 'Thêm size'}
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => setAddingVariant(false)}
-                    className="flex-1 bg-gray-100 text-gray-600 py-2 rounded-lg text-sm font-medium"
-                  >
+                  <button type="button" onClick={() => setAddingVariant(false)} className="flex-1 bg-gray-100 text-gray-600 py-2 rounded-lg text-sm font-medium">
                     Huỷ
                   </button>
                 </div>
