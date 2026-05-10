@@ -43,21 +43,19 @@ export default function OrdersPage() {
   const [filterStatus, setFilterStatus] = useState('');
   const [selected, setSelected] = useState<Order | null>(null);
 
-  const branchId = user?.branch?.id || '';
   const isOwner = user?.role === 'OWNER' || user?.role === 'MANAGER';
 
   const loadOrders = () => {
     setLoading(true);
     const params: any = {};
     if (filterStatus) params.status = filterStatus;
-    const url = branchId ? `/orders/branch/${branchId}` : '/orders';
-    api.get(url, { params })
+    api.get('/orders', { params })
       .then((r) => setOrders(r.data.data || []))
       .catch(() => setOrders([]))
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { loadOrders(); }, [filterStatus, branchId]);
+  useEffect(() => { loadOrders(); }, [filterStatus]);
 
   const handleStatus = async (orderId: string, status: string) => {
     await api.patch(`/orders/${orderId}/status`, { status });
@@ -87,9 +85,9 @@ export default function OrdersPage() {
         <button onClick={loadOrders} className="text-sm text-orange-500 hover:underline">↻ Làm mới</button>
       </div>
 
-      {!branchId && isOwner && (
+      {isOwner && (
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-sm text-blue-700">
-          Đang hiển thị tất cả đơn hàng toàn hệ thống.
+          Đang hiển thị tất cả đơn hàng của chi nhánh.
         </div>
       )}
 
