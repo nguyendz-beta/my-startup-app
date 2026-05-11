@@ -147,13 +147,14 @@ model Branch {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  users          User[]
-  tables         Table[]
-  orders         Order[]
-  inventoryLogs  InventoryLog[]
-  shiftReports   ShiftReport[]
-  reservations   Reservation[]
+  tenant          Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  users           User[]
+  tables          Table[]
+  orders          Order[]
+  inventoryLogs   InventoryLog[]
+  shiftReports    ShiftReport[]
+  reservations    Reservation[]
+  inventoryItems  InventoryItem[]
 
   @@map("branches")
 }
@@ -282,10 +283,10 @@ model Order {
   updatedAt     DateTime    @updatedAt
   completedAt   DateTime?
 
-  branch    Branch     @relation(fields: [branchId], references: [id])
-  table     Table?     @relation(fields: [tableId], references: [id])
-  cashier   User?      @relation(fields: [cashierId], references: [id])
-  discountR Discount?  @relation(fields: [discountId], references: [id])
+  branch    Branch      @relation(fields: [branchId], references: [id])
+  table     Table?      @relation(fields: [tableId], references: [id])
+  cashier   User?       @relation(fields: [cashierId], references: [id])
+  discountR Discount?   @relation(fields: [discountId], references: [id])
   items     OrderItem[]
   payment   Payment?
 
@@ -375,7 +376,7 @@ model Discount {
 }
 
 // ============================================================
-// INVENTORY
+// INVENTORY LOG (cũ — gắn với Product)
 // ============================================================
 
 model InventoryLog {
@@ -439,4 +440,40 @@ model Reservation {
   table   Table?  @relation(fields: [tableId], references: [id])
 
   @@map("reservations")
+}
+
+// ============================================================
+// INVENTORY ITEM (mới — quản lý nguyên liệu độc lập)
+// ============================================================
+
+model InventoryItem {
+  id          String   @id @default(uuid())
+  branchId    String
+  name        String
+  unit        String   @default("kg")
+  quantity    Float    @default(0)
+  minQuantity Float    @default(10)
+  costPrice   Float    @default(0)
+  category    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  branch  Branch             @relation(fields: [branchId], references: [id])
+  logs    InventoryItemLog[]
+
+  @@map("inventory_items")
+}
+
+model InventoryItemLog {
+  id          String   @id @default(uuid())
+  itemId      String
+  type        String
+  quantity    Float
+  note        String?
+  createdBy   String?
+  createdAt   DateTime @default(now())
+
+  item  InventoryItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@map("inventory_item_logs")
 }

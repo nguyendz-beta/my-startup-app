@@ -13,6 +13,7 @@ import branchRoutes from './modules/branches/branch.route';
 import shiftRoutes from './modules/shifts/shift.route';
 // @ts-ignore
 import reservationRoutes from './modules/reservations/reservation.route';
+import inventoryRoutes from './modules/inventory/inventory.route'
 
 const app = express();
 app.use(cors());
@@ -31,7 +32,7 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/branches', branchRoutes);
 app.use('/api/shifts', shiftRoutes);
 app.use('/api/reservations', reservationRoutes);
-
+app.use('/api/inventory', inventoryRoutes)
 app.use(errorMiddleware);
 
 export default app;
