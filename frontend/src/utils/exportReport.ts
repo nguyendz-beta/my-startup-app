@@ -26,7 +26,7 @@ function cellStyle(
   bold = false,
   hAlign: 'left' | 'center' | 'right' = 'left',
   fontSize = 11,
-  numFmt?: string
+  numFmt?: string,
 ) {
   return {
     font: { bold, color: { rgb: fgColor }, sz: fontSize, name: 'Arial' },
@@ -55,7 +55,7 @@ function cell(
   type: XLSX.ExcelDataType = 's',
   alt = false,
   align: 'left' | 'center' | 'right' = 'left',
-  numFmt?: string
+  numFmt?: string,
 ): XLSX.CellObject {
   return {
     v: value as CellVal,
@@ -64,7 +64,11 @@ function cell(
   };
 }
 
-function totalCell(value: CellVal, type: XLSX.ExcelDataType = 'n', numFmt?: string): XLSX.CellObject {
+function totalCell(
+  value: CellVal,
+  type: XLSX.ExcelDataType = 'n',
+  numFmt?: string,
+): XLSX.CellObject {
   return {
     v: value as CellVal,
     t: type as XLSX.ExcelDataType,
@@ -125,7 +129,12 @@ function buildSummarySheet(summary: any, range: string, weekLabel?: string): XLS
   const ref = { r: 0, c: 0 };
   const COLS = 4;
 
-  mergeTitle(ws, `📊 BÁO CÁO TỔNG QUAN — ${range}${weekLabel ? ' | ' + weekLabel : ''}`, COLS, ref.r);
+  mergeTitle(
+    ws,
+    `📊 BÁO CÁO TỔNG QUAN — ${range}${weekLabel ? ' | ' + weekLabel : ''}`,
+    COLS,
+    ref.r,
+  );
   ref.r++;
   ref.r++;
 
@@ -149,6 +158,7 @@ function buildSummarySheet(summary: any, range: string, weekLabel?: string): XLS
     ['Hủy đơn', summary.canceledOrders ?? 0],
   ];
 
+  // ── FIX: check isVndKey cho cả cột trái lẫn cột phải ──
   const isVndKey = (label: string) =>
     ['doanh thu', 'giá trị tb'].some((k) => label.toLowerCase().includes(k));
 
@@ -158,14 +168,16 @@ function buildSummarySheet(summary: any, range: string, weekLabel?: string): XLS
     const [rLabel, rVal] = kpis[i + 1] ?? ['—', '—'];
 
     addRow(ws, ref, [
-      cell(lLabel, 's', alt, 'left'),
-      isVndKey(lLabel) && typeof lVal === 'number'
+      cell(String(lLabel), 's', alt, 'left'),
+      isVndKey(String(lLabel)) && typeof lVal === 'number'
         ? vndCell(lVal, alt)
         : cell(lVal as CellVal, typeof lVal === 'number' ? 'n' : 's', alt, 'right'),
-      cell(rLabel as CellVal, 's', alt, 'left'),
-      typeof rVal === 'number'
-        ? cell(rVal, 'n', alt, 'right')
-        : cell(rVal as CellVal, 's', alt, 'right'),
+      cell(String(rLabel), 's', alt, 'left'),
+      isVndKey(String(rLabel)) && typeof rVal === 'number'
+        ? vndCell(rVal as number, alt)
+        : typeof rVal === 'number'
+          ? cell(rVal, 'n', alt, 'right')
+          : cell(rVal as CellVal, 's', alt, 'right'),
     ]);
   }
 
@@ -348,7 +360,8 @@ function buildSourceSheet(bySource: any[]): XLSX.WorkSheet {
   ]);
 
   const totalRev = bySource.reduce((s, x) => s + (x.revenue ?? 0), 0);
-  let sumO = 0, sumR = 0;
+  let sumO = 0,
+    sumR = 0;
 
   bySource.forEach((x, i) => {
     const alt = i % 2 === 1;
@@ -400,7 +413,8 @@ function buildStaffSheet(byStaff: any[]): XLSX.WorkSheet {
 
   const totalRev = byStaff.reduce((s, x) => s + (x.revenue ?? 0), 0);
   const maxRev = Math.max(...byStaff.map((x) => x.revenue ?? 0), 1);
-  let sumO = 0, sumR = 0;
+  let sumO = 0,
+    sumR = 0;
 
   byStaff.forEach((x, i) => {
     const alt = i % 2 === 1;
@@ -453,13 +467,13 @@ function buildPeakHoursSheet(revenue: any[]): XLSX.WorkSheet {
   ]);
 
   const slots = [
-    { label: '06:00 – 08:00', weight: 0.10 },
-    { label: '08:00 – 10:00', weight: 0.20 },
+    { label: '06:00 – 08:00', weight: 0.1 },
+    { label: '08:00 – 10:00', weight: 0.2 },
     { label: '10:00 – 12:00', weight: 0.15 },
     { label: '12:00 – 14:00', weight: 0.18 },
-    { label: '14:00 – 16:00', weight: 0.10 },
+    { label: '14:00 – 16:00', weight: 0.1 },
     { label: '16:00 – 18:00', weight: 0.12 },
-    { label: '18:00 – 20:00', weight: 0.10 },
+    { label: '18:00 – 20:00', weight: 0.1 },
     { label: '20:00 – 22:00', weight: 0.05 },
   ];
 
@@ -471,9 +485,13 @@ function buildPeakHoursSheet(revenue: any[]): XLSX.WorkSheet {
     const estOrders = Math.round(totalOrders * s.weight);
     const estRev = totalRev * s.weight;
     const level =
-      s.weight >= 0.18 ? '🔴 Rất cao' :
-      s.weight >= 0.12 ? '🟡 Cao' :
-      s.weight >= 0.08 ? '🟢 Trung bình' : '⚪ Thấp';
+      s.weight >= 0.18
+        ? '🔴 Rất cao'
+        : s.weight >= 0.12
+          ? '🟡 Cao'
+          : s.weight >= 0.08
+            ? '🟢 Trung bình'
+            : '⚪ Thấp';
 
     addRow(ws, ref, [
       cell(s.label, 's', alt, 'center'),
@@ -501,7 +519,11 @@ export function exportExcel(data: {
 }) {
   const wb = XLSX.utils.book_new();
 
-  XLSX.utils.book_append_sheet(wb, buildSummarySheet(data.summary, data.range, data.weekLabel), '📊 Tổng quan');
+  XLSX.utils.book_append_sheet(
+    wb,
+    buildSummarySheet(data.summary, data.range, data.weekLabel),
+    '📊 Tổng quan',
+  );
   XLSX.utils.book_append_sheet(wb, buildRevenueSheet(data.revenue), '📈 Doanh thu ngày');
   XLSX.utils.book_append_sheet(wb, buildTopProductsSheet(data.topProducts), '🏆 Top sản phẩm');
   XLSX.utils.book_append_sheet(wb, buildPaymentSheet(data.byPayment), '💳 Thanh toán');
@@ -531,7 +553,9 @@ export function exportPDF(data: {
   doc.setTextColor(30, 58, 95);
   doc.text(
     `BÁO CÁO KINH DOANH — ${data.range}${data.weekLabel ? ' | ' + data.weekLabel : ''}`,
-    148, 16, { align: 'center' }
+    148,
+    16,
+    { align: 'center' },
   );
 
   doc.setFontSize(11);
@@ -569,12 +593,14 @@ export function exportPDF(data: {
   autoTable(doc, {
     startY: afterRev,
     head: [['#', 'Sản phẩm', 'Số lượng', 'Doanh thu']],
-    body: data.topProducts.slice(0, 10).map((p, i) => [
-      String(i + 1),
-      String(p.name ?? p.product ?? '—'),
-      String(p.quantity ?? 0),
-      fmt(p.revenue ?? 0),
-    ]),
+    body: data.topProducts
+      .slice(0, 10)
+      .map((p, i) => [
+        String(i + 1),
+        String(p.name ?? p.product ?? '—'),
+        String(p.quantity ?? 0),
+        fmt(p.revenue ?? 0),
+      ]),
     theme: 'grid',
     headStyles: { fillColor: [30, 58, 95], textColor: 255, fontStyle: 'bold' },
     alternateRowStyles: { fillColor: [240, 244, 248] },
