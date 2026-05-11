@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react';
+﻿import { useEffect, useState, useMemo } from 'react';
 import api from '../../api/axios';
 import { useAuthStore } from '../../store/authStore';
 import toast from 'react-hot-toast';
@@ -30,6 +30,9 @@ const TYPE_LABEL: Record<string, { label: string; color: string }> = {
 };
 
 const EMPTY_FORM = { name: '', unit: 'kg', quantity: '0', minQuantity: '10', costPrice: '0', category: '' };
+const PAGE_SIZE = 20;
+
+type SortKey = 'name' | 'quantity' | 'costPrice' | 'category';
 
 export default function InventoryPage() {
   const user = useAuthStore((s) => s.user);
@@ -43,6 +46,11 @@ export default function InventoryPage() {
   const [saving, setSaving] = useState(false);
   const [importing, setImporting] = useState(false);
   const [search, setSearch] = useState('');
+  const [filterCategory, setFilterCategory] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
+  const [sortKey, setSortKey] = useState<SortKey>('name');
+  const [sortAsc, setSortAsc] = useState(true);
+  const [page, setPage] = useState(1);
   const [form, setForm] = useState(EMPTY_FORM);
   const [stockForm, setStockForm] = useState({ type: 'IN', quantity: '', note: '' });
   const [branchId, setBranchId] = useState(user?.branch?.id || '');
@@ -66,28 +74,55 @@ export default function InventoryPage() {
 
   useEffect(() => { if (branchId) loadItems(); }, [branchId]);
 
-  const openCreate = () => {
-    setEditingItem(null);
-    setForm(EMPTY_FORM);
-    setShowForm(true);
+  // Danh mục duy nhất
+  const categories = useMemo(() =>
+    Array.from(new Set(items.map((i) => i.category).filter(Boolean))) as string[],
+    [items]
+  );
+
+  // Filter + sort + paginate
+  const filtered = useMemo(() => {
+    let result = items.filter((i) => {
+      const matchSearch = i.name.toLowerCase().includes(search.toLowerCase());
+      const matchCat = !filterCategory || i.category === filterCategory;
+      const matchStatus = !filterStatus ||
+        (filterStatus === 'low' && i.quantity <= i.minQuantity) ||
+        (filterStatus === 'ok' && i.quantity > i.minQuantity);
+      return matchSearch && matchCat && matchStatus;
+    });
+    result = [...result].sort((a, b) => {
+      let av: any = a[sortKey] ?? '';
+      let bv: any = b[sortKey] ?? '';
+      if (typeof av === 'string') av = av.toLowerCase();
+      if (typeof bv === 'string') bv = bv.toLowerCase();
+      return sortAsc ? (av > bv ? 1 : -1) : (av < bv ? 1 : -1);
+    });
+    return result;
+  }, [items, search, filterCategory, filterStatus, sortKey, sortAsc]);
+
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  const handleSort = (key: SortKey) => {
+    if (sortKey === key) setSortAsc(!sortAsc);
+    else { setSortKey(key); setSortAsc(true); }
+    setPage(1);
   };
+
+  const SortIcon = ({ k }: { k: SortKey }) =>
+    sortKey === k ? <span className="ml-1">{sortAsc ? '↑' : '↓'}</span> : <span className="ml-1 text-gray-300">↕</span>;
+
+  const openCreate = () => { setEditingItem(null); setForm(EMPTY_FORM); setShowForm(true); };
 
   const openEdit = (item: InventoryItem) => {
     setEditingItem(item);
-    setForm({
-      name: item.name,
-      unit: item.unit,
-      quantity: item.quantity.toString(),
-      minQuantity: item.minQuantity.toString(),
-      costPrice: item.costPrice.toString(),
-      category: item.category || '',
-    });
+    setForm({ name: item.name, unit: item.unit, quantity: item.quantity.toString(),
+      minQuantity: item.minQuantity.toString(), costPrice: item.costPrice.toString(), category: item.category || '' });
     setShowForm(true);
   };
 
   const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSaving(true);
+    e.preventDefault(); setSaving(true);
     try {
       if (editingItem) {
         await api.put(`/inventory/${editingItem.id}`, {
@@ -98,133 +133,126 @@ export default function InventoryPage() {
         });
         toast.success('Cập nhật thành công!');
       } else {
-        await api.post('/inventory', {
-          ...form, branchId,
+        await api.post('/inventory', { ...form, branchId,
           quantity: parseFloat(form.quantity),
           minQuantity: parseFloat(form.minQuantity),
           costPrice: parseFloat(form.costPrice),
         });
         toast.success('Thêm nguyên liệu thành công!');
       }
-      setShowForm(false);
-      setEditingItem(null);
-      setForm(EMPTY_FORM);
-      loadItems();
+      setShowForm(false); setEditingItem(null); setForm(EMPTY_FORM); loadItems();
     } catch (e: any) {
       toast.error(e.response?.data?.message || 'Lỗi lưu nguyên liệu');
-    } finally {
-      setSaving(false);
-    }
+    } finally { setSaving(false); }
   };
 
   const handleDelete = async (item: InventoryItem) => {
     if (!confirm(`Xoá "${item.name}"?`)) return;
     try {
       await api.delete(`/inventory/${item.id}`);
-      toast.success('Đã xoá nguyên liệu');
-      loadItems();
-    } catch (e: any) {
-      toast.error(e.response?.data?.message || 'Lỗi xoá');
-    }
+      toast.success('Đã xoá'); loadItems();
+    } catch (e: any) { toast.error(e.response?.data?.message || 'Lỗi xoá'); }
   };
 
   const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const file = e.target.files?.[0]; if (!file) return;
     setImporting(true);
     try {
       const formData = new FormData();
-      formData.append('file', file);
-      formData.append('branchId', branchId);
+      formData.append('file', file); formData.append('branchId', branchId);
       const token = localStorage.getItem('token');
       const { default: axios } = await import('axios');
       const res = await axios.post('/api/upload/inventory-excel', formData, {
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' },
       });
-      toast.success(res.data.message);
-      loadItems();
+      toast.success(res.data.message); loadItems();
     } catch (e: any) {
       toast.error(e.response?.data?.message || 'Lỗi import Excel');
-    } finally {
-      setImporting(false);
-      e.target.value = '';
-    }
+    } finally { setImporting(false); e.target.value = ''; }
+  };
+
+  const handleExportExcel = () => {
+    const headers = ['Tên nguyên liệu', 'Danh mục', 'Đơn vị', 'Tồn kho', 'Tối thiểu', 'Giá nhập', 'Trạng thái'];
+    const rows = filtered.map((i) => [
+      i.name, i.category || '', i.unit, i.quantity, i.minQuantity, i.costPrice,
+      i.quantity <= i.minQuantity ? 'Sắp hết' : 'Đủ hàng',
+    ]);
+    const csv = [headers, ...rows].map((r) => r.join(',')).join('\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url;
+    a.download = `kho_hang_${new Date().toLocaleDateString('vi-VN').replace(/\//g, '-')}.csv`;
+    a.click(); URL.revokeObjectURL(url);
+    toast.success('Xuất Excel thành công!');
   };
 
   const downloadTemplate = () => {
-    const csv = 'Tên nguyên liệu,Danh mục,Đơn vị,Số lượng,Tối thiểu,Giá nhập\nCà phê Arabica,Cà phê,kg,50,10,200000\nSữa tươi,Sữa,lít,20,5,30000\n';
+    const csv = 'Tên nguyên liệu,Danh mục,Đơn vị,Số lượng,Tối thiểu,Giá nhập\nCà phê Arabica,Cà phê,kg,50,10,200000\n';
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = 'mau_nhap_kho.csv'; a.click();
+    const a = document.createElement('a'); a.href = url; a.download = 'mau_nhap_kho.csv'; a.click();
     URL.revokeObjectURL(url);
   };
 
   const openStockModal = async (item: InventoryItem) => {
-    setSelected(item);
-    setShowStock(true);
-    try {
-      const r = await api.get(`/inventory/${item.id}/logs`);
-      setLogs(r.data.data);
-    } catch { setLogs([]); }
+    setSelected(item); setShowStock(true);
+    try { const r = await api.get(`/inventory/${item.id}/logs`); setLogs(r.data.data); }
+    catch { setLogs([]); }
   };
 
   const handleStock = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selected) return;
-    setSaving(true);
+    e.preventDefault(); if (!selected) return; setSaving(true);
     try {
       await api.post(`/inventory/${selected.id}/stock`, {
-        type: stockForm.type,
-        quantity: parseFloat(stockForm.quantity),
-        note: stockForm.note,
+        type: stockForm.type, quantity: parseFloat(stockForm.quantity), note: stockForm.note,
       });
       toast.success('Cập nhật kho thành công!');
       setStockForm({ type: 'IN', quantity: '', note: '' });
       loadItems();
-      const r = await api.get(`/inventory/${selected.id}/logs`);
-      setLogs(r.data.data);
+      const r = await api.get(`/inventory/${selected.id}/logs`); setLogs(r.data.data);
       const refreshed = await api.get(`/inventory?branchId=${branchId}`);
       const updatedItem = refreshed.data.data.find((i: InventoryItem) => i.id === selected.id);
       if (updatedItem) setSelected(updatedItem);
     } catch (e: any) {
       toast.error(e.response?.data?.message || 'Lỗi cập nhật kho');
-    } finally {
-      setSaving(false);
-    }
+    } finally { setSaving(false); }
   };
 
-  const filtered = items.filter((i) => i.name.toLowerCase().includes(search.toLowerCase()));
   const lowStock = items.filter((i) => i.quantity <= i.minQuantity);
 
   if (!branchId) return <div className="text-center py-20 text-gray-400">Đang tải...</div>;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
+      {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Quản lý kho</h1>
-          <p className="text-gray-500 text-sm mt-1">{items.length} nguyên liệu</p>
+          <p className="text-gray-500 text-sm mt-1">
+            {items.length} nguyên liệu · hiển thị {filtered.length}
+          </p>
         </div>
         <div className="flex gap-2 flex-wrap">
-          {/* Tải mẫu */}
           <button onClick={downloadTemplate}
             className="bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-2 rounded-lg text-sm font-medium">
-            📥 Tải mẫu Excel
+            📥 Tải mẫu
           </button>
-          {/* Import Excel */}
-          <label className={`cursor-pointer px-3 py-2 rounded-lg text-sm font-medium transition-colors ${importing ? 'bg-green-100 text-green-600' : 'bg-green-500 hover:bg-green-600 text-white'}`}>
+          <label className={`cursor-pointer px-3 py-2 rounded-lg text-sm font-medium ${importing ? 'bg-green-100 text-green-600' : 'bg-green-500 hover:bg-green-600 text-white'}`}>
             {importing ? '⏳ Đang import...' : '📊 Import Excel'}
-            <input type="file" accept=".xlsx,.xls,.csv" className="hidden"
-              disabled={importing} onChange={handleImportExcel} />
+            <input type="file" accept=".xlsx,.xls,.csv" className="hidden" disabled={importing} onChange={handleImportExcel} />
           </label>
+          <button onClick={handleExportExcel}
+            className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-lg text-sm font-medium">
+            📤 Xuất Excel
+          </button>
           <button onClick={openCreate}
             className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-medium">
-            + Thêm nguyên liệu
+            + Thêm
           </button>
         </div>
       </div>
 
+      {/* Cảnh báo hết hàng */}
       {lowStock.length > 0 && (
         <div className="bg-red-50 border border-red-200 rounded-xl p-4">
           <p className="font-semibold text-red-700 mb-2">⚠️ Sắp hết hàng ({lowStock.length} mặt hàng)</p>
@@ -238,6 +266,7 @@ export default function InventoryPage() {
         </div>
       )}
 
+      {/* Form thêm/sửa */}
       {showForm && (
         <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
           <h2 className="font-semibold text-gray-700 mb-4">
@@ -282,10 +311,25 @@ export default function InventoryPage() {
         </div>
       )}
 
-      <input value={search} onChange={(e) => setSearch(e.target.value)}
-        className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
-        placeholder="🔍 Tìm nguyên liệu..." />
+      {/* Filter + Search */}
+      <div className="flex gap-2 flex-wrap">
+        <input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+          className="flex-1 min-w-48 px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+          placeholder="🔍 Tìm nguyên liệu..." />
+        <select value={filterCategory} onChange={(e) => { setFilterCategory(e.target.value); setPage(1); }}
+          className="px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400">
+          <option value="">Tất cả danh mục</option>
+          {categories.map((c) => <option key={c} value={c}>{c}</option>)}
+        </select>
+        <select value={filterStatus} onChange={(e) => { setFilterStatus(e.target.value); setPage(1); }}
+          className="px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400">
+          <option value="">Tất cả trạng thái</option>
+          <option value="low">⚠️ Sắp hết</option>
+          <option value="ok">✓ Đủ hàng</option>
+        </select>
+      </div>
 
+      {/* Table */}
       {loading ? (
         <div className="text-center py-20 text-gray-400">Đang tải...</div>
       ) : (
@@ -293,13 +337,27 @@ export default function InventoryPage() {
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-100">
               <tr>
-                {['Nguyên liệu', 'Danh mục', 'Tồn kho', 'Đơn vị', 'Giá nhập', 'Trạng thái', 'Thao tác'].map((h) => (
-                  <th key={h} className="text-left text-xs font-medium text-gray-500 px-4 py-3">{h}</th>
+                {([
+                  { label: 'Nguyên liệu', key: 'name' },
+                  { label: 'Danh mục', key: 'category' },
+                  { label: 'Tồn kho', key: 'quantity' },
+                  { label: 'Đơn vị', key: null },
+                  { label: 'Giá nhập', key: 'costPrice' },
+                  { label: 'Trạng thái', key: null },
+                  { label: 'Thao tác', key: null },
+                ] as { label: string; key: SortKey | null }[]).map((h) => (
+                  <th key={h.label}
+                    onClick={() => h.key && handleSort(h.key)}
+                    className={`text-left text-xs font-medium text-gray-500 px-4 py-3 ${h.key ? 'cursor-pointer hover:text-gray-700 select-none' : ''}`}>
+                    {h.label}{h.key && <SortIcon k={h.key} />}
+                  </th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {filtered.map((item) => (
+              {paginated.length === 0 ? (
+                <tr><td colSpan={7} className="text-center py-12 text-gray-300">Không có kết quả</td></tr>
+              ) : paginated.map((item) => (
                 <tr key={item.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3 font-medium text-gray-800">{item.name}</td>
                   <td className="px-4 py-3 text-sm text-gray-500">{item.category || '—'}</td>
@@ -307,7 +365,7 @@ export default function InventoryPage() {
                     <span className={`font-bold ${item.quantity <= item.minQuantity ? 'text-red-500' : 'text-gray-800'}`}>
                       {fmt(item.quantity)}
                     </span>
-                    <span className="text-xs text-gray-400 ml-1">/ min {fmt(item.minQuantity)}</span>
+                    <span className="text-xs text-gray-400 ml-1">/ {fmt(item.minQuantity)}</span>
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-600">{item.unit}</td>
                   <td className="px-4 py-3 text-sm text-gray-600">{fmt(item.costPrice)}đ</td>
@@ -318,21 +376,47 @@ export default function InventoryPage() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex gap-2">
-                      <button onClick={() => openStockModal(item)}
-                        className="text-xs text-orange-500 hover:text-orange-700 font-medium">Nhập/Xuất</button>
-                      <button onClick={() => openEdit(item)}
-                        className="text-xs text-blue-500 hover:text-blue-700 font-medium">Sửa</button>
-                      <button onClick={() => handleDelete(item)}
-                        className="text-xs text-red-400 hover:text-red-600 font-medium">Xoá</button>
+                      <button onClick={() => openStockModal(item)} className="text-xs text-orange-500 hover:text-orange-700 font-medium">Nhập/Xuất</button>
+                      <button onClick={() => openEdit(item)} className="text-xs text-blue-500 hover:text-blue-700 font-medium">Sửa</button>
+                      <button onClick={() => handleDelete(item)} className="text-xs text-red-400 hover:text-red-600 font-medium">Xoá</button>
                     </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+
+          {/* Phân trang */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 bg-gray-50">
+              <p className="text-xs text-gray-500">
+                Trang {page}/{totalPages} · {filtered.length} kết quả
+              </p>
+              <div className="flex gap-1">
+                <button onClick={() => setPage(1)} disabled={page === 1}
+                  className="px-2 py-1 text-xs rounded border disabled:opacity-30 hover:bg-white">«</button>
+                <button onClick={() => setPage(page - 1)} disabled={page === 1}
+                  className="px-2 py-1 text-xs rounded border disabled:opacity-30 hover:bg-white">‹</button>
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  const p = Math.max(1, Math.min(page - 2, totalPages - 4)) + i;
+                  return (
+                    <button key={p} onClick={() => setPage(p)}
+                      className={`px-2.5 py-1 text-xs rounded border ${p === page ? 'bg-orange-500 text-white border-orange-500' : 'hover:bg-white'}`}>
+                      {p}
+                    </button>
+                  );
+                })}
+                <button onClick={() => setPage(page + 1)} disabled={page === totalPages}
+                  className="px-2 py-1 text-xs rounded border disabled:opacity-30 hover:bg-white">›</button>
+                <button onClick={() => setPage(totalPages)} disabled={page === totalPages}
+                  className="px-2 py-1 text-xs rounded border disabled:opacity-30 hover:bg-white">»</button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
+      {/* Stock Modal */}
       {showStock && selected && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4"
           onClick={() => setShowStock(false)}>
