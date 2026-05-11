@@ -92,13 +92,7 @@ export const orderService = {
 
     const total = subtotal - discountAmount;
 
-    const todayOrders = await prisma.order.count({
-      where: {
-        branchId,
-        createdAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) },
-      },
-    });
-    const orderCode = `${String.fromCharCode(65 + (Math.floor(todayOrders / 100) % 26))}${String((todayOrders % 100) + 1).padStart(3, '0')}`;
+    const orderCode = `ORD${Date.now()}${Math.random().toString(36).slice(2, 5).toUpperCase()}`;
 
     const status = data.autoComplete ? 'COMPLETED' : 'PENDING';
 
@@ -140,6 +134,7 @@ export const orderService = {
     orderEvents.newOrder(branchId, order);
     return order;
   },
+
   async updateOrderStatus(branchId: string, orderId: string, status: string) {
     const order = await prisma.order.findFirst({
       where: { id: orderId, branchId },
