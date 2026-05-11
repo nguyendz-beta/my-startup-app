@@ -132,8 +132,34 @@ export default function ReportsPage() {
 
   const weekRange = getWeekRange(weekOffset);
 
+  // ── FIX: map đúng field từ summary API ──────────────────────────────────────
+  const activeSummary =
+    range === 'year'
+      ? summary?.thisYear
+      : range === 'month'
+        ? summary?.thisMonth
+        : range === 'week'
+          ? summary?.thisWeek
+          : range === '14'
+            ? summary?.thisMonth
+            : summary?.today;
+
   const exportData = {
-    summary,
+    summary: {
+      totalRevenue: activeSummary?.revenue ?? 0,
+      totalOrders: activeSummary?.orders ?? 0,
+      avgOrderValue:
+        (activeSummary?.orders ?? 0) > 0 ? (activeSummary?.revenue ?? 0) / activeSummary.orders : 0,
+      totalCustomers: summary?.totalCustomers ?? 0,
+      cashRevenue: byPayment.find((p) => p.method === 'CASH')?.revenue ?? 0,
+      transferRevenue: byPayment.find((p) => p.method === 'TRANSFER')?.revenue ?? 0,
+      dineInOrders: bySource.find((s) => s.source === 'DINE_IN')?.orders ?? 0,
+      takeawayOrders: bySource.find((s) => s.source === 'TAKEAWAY')?.orders ?? 0,
+      onlineOrders:
+        (bySource.find((s) => s.source === 'DELIVERY')?.orders ?? 0) +
+        (bySource.find((s) => s.source === 'QR_ORDER')?.orders ?? 0),
+      canceledOrders: summary?.canceledOrders ?? 0,
+    },
     revenue: range === 'year' ? revenueByMonth : revenue,
     topProducts,
     byPayment,
@@ -142,6 +168,7 @@ export default function ReportsPage() {
     range,
     weekLabel: range === 'week' ? weekRange.label : undefined,
   };
+  // ─────────────────────────────────────────────────────────────────────────────
 
   if (!branchId) return <div className="text-center py-20 text-gray-400">Đang tải...</div>;
 
