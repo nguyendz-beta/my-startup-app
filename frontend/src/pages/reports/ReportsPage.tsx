@@ -1,6 +1,7 @@
 ﻿import { useEffect, useState } from 'react';
 import api from '../../api/axios';
 import { useAuthStore } from '../../store/authStore';
+import { exportExcel, exportPDF } from '../../utils/exportReport';
 
 const RANGE_OPTIONS = [
   { value: 'today', label: 'Hôm nay' },
@@ -35,7 +36,6 @@ function getWeekRange(offset: number) {
   const sunday = new Date(monday);
   sunday.setDate(monday.getDate() + 6);
 
-  // Dùng local date format thay vì toISOString() để tránh lệch UTC
   const fmtISO = (d: Date) =>
     `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   const fmtVN = (d: Date) => d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
@@ -47,7 +47,6 @@ function getWeekRange(offset: number) {
   };
 }
 
-// Parse "YYYY-MM-DD" thành local Date (không bị lệch UTC)
 function parseDateLocal(dateStr: string) {
   const [y, m, d] = dateStr.split('-').map(Number);
   return new Date(y, m - 1, d);
@@ -127,12 +126,22 @@ export default function ReportsPage() {
   const totalSource = bySource.reduce((s, d) => s + d.orders, 0);
   const totalProducts = topProducts.reduce((s, d) => s + d.quantity, 0);
 
-  // Dùng parseDateLocal để tránh lệch ngày do UTC
   const getDayLabel = (dateStr: string) => DAY_LABEL[parseDateLocal(dateStr).getDay()];
   const getDateLabel = (dateStr: string) =>
     parseDateLocal(dateStr).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
 
   const weekRange = getWeekRange(weekOffset);
+
+  const exportData = {
+    summary,
+    revenue: range === 'year' ? revenueByMonth : revenue,
+    topProducts,
+    byPayment,
+    bySource,
+    byStaff,
+    range,
+    weekLabel: range === 'week' ? weekRange.label : undefined,
+  };
 
   if (!branchId) return <div className="text-center py-20 text-gray-400">Đang tải...</div>;
 
@@ -140,7 +149,25 @@ export default function ReportsPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <h1 className="text-2xl font-bold text-gray-800">📈 Báo cáo doanh thu</h1>
+        <div className="flex items-center gap-3 flex-wrap">
+          <h1 className="text-2xl font-bold text-gray-800">📈 Báo cáo doanh thu</h1>
+          {!loading && (
+            <div className="flex gap-2">
+              <button
+                onClick={() => exportExcel(exportData)}
+                className="px-3 py-1.5 rounded-lg bg-green-500 hover:bg-green-600 text-white text-sm font-medium flex items-center gap-1"
+              >
+                📊 Xuất Excel
+              </button>
+              <button
+                onClick={() => exportPDF(exportData)}
+                className="px-3 py-1.5 rounded-lg bg-red-500 hover:bg-red-600 text-white text-sm font-medium flex items-center gap-1"
+              >
+                📄 Xuất PDF
+              </button>
+            </div>
+          )}
+        </div>
         <div className="flex gap-1 bg-white border border-gray-200 rounded-xl p-1">
           {RANGE_OPTIONS.map((o) => (
             <button
