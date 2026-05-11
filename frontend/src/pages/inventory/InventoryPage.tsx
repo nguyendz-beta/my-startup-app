@@ -64,7 +64,7 @@ export default function InventoryPage() {
     });
   }, [user]);
 
-  const fmt = (n: number) => new Intl.NumberFormat('vi-VN').format(n);
+ const fmt = (n: number) => new Intl.NumberFormat('vi-VN').format(n) + 'đ'; 
 
   const loadItems = () => {
     api.get(`/inventory?branchId=${branchId}`)
@@ -368,7 +368,7 @@ export default function InventoryPage() {
                     <span className="text-xs text-gray-400 ml-1">/ {fmt(item.minQuantity)}</span>
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-600">{item.unit}</td>
-                  <td className="px-4 py-3 text-sm text-gray-600">{fmt(item.costPrice)}đ</td>
+                  <td className="px-4 py-3 text-sm text-gray-600">{fmt(item.costPrice)}</td>
                   <td className="px-4 py-3">
                     <span className={`text-xs px-2 py-1 rounded-full font-medium ${item.quantity <= item.minQuantity ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`}>
                       {item.quantity <= item.minQuantity ? '⚠️ Sắp hết' : '✓ Đủ hàng'}
