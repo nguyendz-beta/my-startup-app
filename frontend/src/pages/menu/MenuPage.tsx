@@ -39,6 +39,7 @@ export default function MenuPage() {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [selected, setSelected] = useState<Product | null>(null);
   const [search, setSearch] = useState('');
   const [form, setForm] = useState({
@@ -49,7 +50,6 @@ export default function MenuPage() {
     imageUrl: '',
   });
 
-  // Variants trong form thêm/sửa
   const [formVariants, setFormVariants] = useState<{ id?: string; name: string; priceModifier: string }[]>([]);
   const [newVariant, setNewVariant] = useState({ name: '', priceModifier: '0' });
 
@@ -57,8 +57,7 @@ export default function MenuPage() {
   const canDelete = user?.role === 'OWNER' || user?.role === 'MANAGER';
 
   const loadProducts = () => {
-    productApi
-      .getProducts()
+    productApi.getProducts()
       .then((r) => setProducts(r.data.data))
       .finally(() => setLoading(false));
   };
@@ -95,6 +94,25 @@ export default function MenuPage() {
     setSelected(null);
   };
 
+  const handleUploadImage = async (file: File) => {
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('image', file);
+      const token = localStorage.getItem('token');
+      const { default: axios } = await import('axios');
+      const res = await axios.post('/api/upload/image', formData, {
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' },
+      });
+      setForm((prev) => ({ ...prev, imageUrl: res.data.url }));
+      toast.success('Upload ảnh thành công!');
+    } catch {
+      toast.error('Lỗi upload ảnh');
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const addFormVariant = () => {
     if (!newVariant.name.trim()) return;
     setFormVariants((prev) => [...prev, { name: newVariant.name, priceModifier: newVariant.priceModifier }]);
@@ -119,7 +137,6 @@ export default function MenuPage() {
 
       if (editing) {
         await productApi.updateProduct(editing.id, payload);
-        // Xử lý variants: xoá cái cũ không còn, thêm cái mới
         const oldIds = editing.variants.map((v) => v.id);
         const keepIds = formVariants.filter((v) => v.id).map((v) => v.id!);
         const toDelete = oldIds.filter((id) => !keepIds.includes(id));
@@ -180,20 +197,15 @@ export default function MenuPage() {
             <h1 className="text-2xl font-bold text-gray-800">Thực đơn</h1>
             <p className="text-gray-500 text-sm mt-1">{products.length} sản phẩm</p>
           </div>
-          <button
-            onClick={openCreate}
-            className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-medium"
-          >
+          <button onClick={openCreate}
+            className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-medium">
             + Thêm sản phẩm
           </button>
         </div>
 
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
+        <input value={search} onChange={(e) => setSearch(e.target.value)}
           className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
-          placeholder="🔍 Tìm sản phẩm..."
-        />
+          placeholder="🔍 Tìm sản phẩm..." />
 
         {showForm && (
           <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
@@ -204,63 +216,78 @@ export default function MenuPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Tên sản phẩm *</label>
-                  <input
-                    value={form.name}
-                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
-                    placeholder="Cà phê sữa đá"
-                    required
-                  />
+                    placeholder="Cà phê sữa đá" required />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Giá (VNĐ) *</label>
-                  <input
-                    type="number"
-                    value={form.basePrice}
-                    onChange={(e) => setForm({ ...form, basePrice: e.target.value })}
+                  <input type="number" value={form.basePrice} onChange={(e) => setForm({ ...form, basePrice: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
-                    placeholder="35000"
-                    required
-                  />
+                    placeholder="35000" required />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Danh mục</label>
-                  <select
-                    value={form.categoryId}
-                    onChange={(e) => setForm({ ...form, categoryId: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
-                  >
+                  <select value={form.categoryId} onChange={(e) => setForm({ ...form, categoryId: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400">
                     <option value="">-- Chọn danh mục --</option>
-                    {categories.map((c) => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
+                    {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Link ảnh</label>
-                  <input
-                    value={form.imageUrl}
-                    onChange={(e) => setForm({ ...form, imageUrl: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
-                    placeholder="https://..."
-                  />
-                </div>
-                <div className="col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Mô tả</label>
-                  <input
-                    value={form.description}
-                    onChange={(e) => setForm({ ...form, description: e.target.value })}
+                  <input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
-                    placeholder="Mô tả ngắn về sản phẩm"
-                  />
+                    placeholder="Mô tả ngắn về sản phẩm" />
+                </div>
+
+                {/* Ảnh sản phẩm — full width */}
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Ảnh sản phẩm</label>
+                  <div className="flex items-start gap-4">
+                    {/* Preview */}
+                    {form.imageUrl ? (
+                      <div className="relative flex-shrink-0">
+                        <img src={form.imageUrl} alt="" className="w-24 h-24 object-cover rounded-xl border border-gray-200" />
+                        <button type="button" onClick={() => setForm({ ...form, imageUrl: '' })}
+                          className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center hover:bg-red-600">
+                          ✕
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="w-24 h-24 rounded-xl border-2 border-dashed border-gray-200 flex items-center justify-center text-gray-300 text-3xl flex-shrink-0">
+                        🖼️
+                      </div>
+                    )}
+                    <div className="flex-1 space-y-2">
+                      {/* Upload từ máy/điện thoại */}
+                      <label className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 border-dashed cursor-pointer transition-colors ${uploading ? 'border-orange-300 bg-orange-50' : 'border-orange-200 bg-orange-50 hover:bg-orange-100'}`}>
+                        {uploading ? (
+                          <span className="text-orange-500 text-sm">⏳ Đang upload...</span>
+                        ) : (
+                          <>
+                            <span className="text-2xl">📁</span>
+                            <div>
+                              <p className="text-sm font-medium text-orange-600">Chọn ảnh từ máy / điện thoại</p>
+                              <p className="text-xs text-gray-400">JPG, PNG, WEBP — tối đa 5MB</p>
+                            </div>
+                          </>
+                        )}
+                        <input type="file" accept="image/*" className="hidden" disabled={uploading}
+                          onChange={(e) => { const file = e.target.files?.[0]; if (file) handleUploadImage(file); }} />
+                      </label>
+                      {/* Hoặc nhập link */}
+                      <input value={form.imageUrl} onChange={(e) => setForm({ ...form, imageUrl: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                        placeholder="Hoặc dán link ảnh https://..." />
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              {/* Quản lý size ngay trong form */}
+              {/* Quản lý size */}
               <div className="border border-gray-200 rounded-lg p-4">
                 <p className="text-sm font-medium text-gray-700 mb-3">📐 Quản lý size</p>
-
-                {/* Danh sách size đã thêm */}
                 {formVariants.length > 0 && (
                   <div className="space-y-2 mb-3">
                     {formVariants.map((v, i) => (
@@ -269,71 +296,43 @@ export default function MenuPage() {
                         <span className="text-xs text-gray-400">
                           {parseInt(v.priceModifier) > 0 ? '+' : ''}{parseInt(v.priceModifier) !== 0 ? fmt(parseInt(v.priceModifier)) : 'Giá gốc'}
                         </span>
-                        <button
-                          type="button"
-                          onClick={() => removeFormVariant(i)}
-                          className="text-red-400 hover:text-red-600 text-xs ml-1"
-                        >
-                          ✕
-                        </button>
+                        <button type="button" onClick={() => removeFormVariant(i)}
+                          className="text-red-400 hover:text-red-600 text-xs ml-1">✕</button>
                       </div>
                     ))}
                   </div>
                 )}
-
-                {/* Gợi ý size nhanh */}
                 <div className="flex gap-1 flex-wrap mb-2">
                   <span className="text-xs text-gray-400 self-center">Gợi ý:</span>
                   {formSizeSuggestions.map((s) => (
-                    <button
-                      key={s}
-                      type="button"
-                      onClick={() => setNewVariant({ ...newVariant, name: s })}
-                      className="text-xs px-2.5 py-1 bg-gray-100 hover:bg-orange-100 hover:text-orange-600 rounded-full transition-colors"
-                    >
+                    <button key={s} type="button" onClick={() => setNewVariant({ ...newVariant, name: s })}
+                      className="text-xs px-2.5 py-1 bg-gray-100 hover:bg-orange-100 hover:text-orange-600 rounded-full transition-colors">
                       {s}
                     </button>
                   ))}
                 </div>
-
-                {/* Thêm size mới */}
                 <div className="flex gap-2">
-                  <input
-                    value={newVariant.name}
-                    onChange={(e) => setNewVariant({ ...newVariant, name: e.target.value })}
+                  <input value={newVariant.name} onChange={(e) => setNewVariant({ ...newVariant, name: e.target.value })}
                     className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
-                    placeholder="Tên size"
-                  />
-                  <input
-                    type="number"
-                    value={newVariant.priceModifier}
+                    placeholder="Tên size" />
+                  <input type="number" value={newVariant.priceModifier}
                     onChange={(e) => setNewVariant({ ...newVariant, priceModifier: e.target.value })}
                     className="w-28 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
-                    placeholder="+/- giá"
-                  />
-                  <button
-                    type="button"
-                    onClick={addFormVariant}
-                    className="px-3 py-2 bg-orange-100 text-orange-600 rounded-lg text-sm font-medium hover:bg-orange-200"
-                  >
+                    placeholder="+/- giá" />
+                  <button type="button" onClick={addFormVariant}
+                    className="px-3 py-2 bg-orange-100 text-orange-600 rounded-lg text-sm font-medium hover:bg-orange-200">
                     + Thêm
                   </button>
                 </div>
               </div>
 
               <div className="flex gap-2">
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="bg-orange-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-orange-600 disabled:opacity-50"
-                >
+                <button type="submit" disabled={saving || uploading}
+                  className="bg-orange-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-orange-600 disabled:opacity-50">
                   {saving ? 'Đang lưu...' : editing ? 'Cập nhật' : 'Lưu sản phẩm'}
                 </button>
-                <button
-                  type="button"
-                  onClick={() => { setShowForm(false); setEditing(null); }}
-                  className="bg-gray-100 text-gray-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-200"
-                >
+                <button type="button" onClick={() => { setShowForm(false); setEditing(null); }}
+                  className="bg-gray-100 text-gray-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-200">
                   Huỷ
                 </button>
               </div>
@@ -355,16 +354,13 @@ export default function MenuPage() {
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {filtered.map((product) => (
-                  <tr
-                    key={product.id}
-                    className="hover:bg-gray-50"
-                  >
+                  <tr key={product.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center text-lg overflow-hidden">
+                        <div className="w-10 h-10 rounded-lg bg-orange-50 flex items-center justify-center text-lg overflow-hidden flex-shrink-0">
                           {product.imageUrl ? (
                             <img src={product.imageUrl} alt="" className="w-full h-full object-cover rounded-lg" />
-                          ) : ('☕')}
+                          ) : '🍽️'}
                         </div>
                         <p className="text-sm font-medium text-gray-800">{product.name}</p>
                       </div>
@@ -381,42 +377,26 @@ export default function MenuPage() {
                       <div className="flex gap-1 flex-wrap">
                         {product.variants.length === 0 ? (
                           <span className="text-xs text-gray-300">—</span>
-                        ) : (
-                          product.variants.map((v) => (
-                            <span key={v.id} className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">
-                              {v.name}
-                            </span>
-                          ))
-                        )}
+                        ) : product.variants.map((v) => (
+                          <span key={v.id} className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">
+                            {v.name}
+                          </span>
+                        ))}
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); handleToggle(product); }}
-                        className={`text-xs px-3 py-1 rounded-full font-medium transition-colors ${
-                          product.isAvailable
-                            ? 'bg-green-100 text-green-600 hover:bg-green-200'
-                            : 'bg-red-100 text-red-500 hover:bg-red-200'
-                        }`}
-                      >
+                      <button onClick={(e) => { e.stopPropagation(); handleToggle(product); }}
+                        className={`text-xs px-3 py-1 rounded-full font-medium transition-colors ${product.isAvailable ? 'bg-green-100 text-green-600 hover:bg-green-200' : 'bg-red-100 text-red-500 hover:bg-red-200'}`}>
                         {product.isAvailable ? '✓ Đang bán' : '✗ Hết hàng'}
                       </button>
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex gap-2">
-                        <button
-                          onClick={(e) => { e.stopPropagation(); openEdit(product); }}
-                          className="text-xs text-blue-500 hover:text-blue-700 font-medium"
-                        >
-                          Sửa
-                        </button>
+                        <button onClick={(e) => { e.stopPropagation(); openEdit(product); }}
+                          className="text-xs text-blue-500 hover:text-blue-700 font-medium">Sửa</button>
                         {canDelete && (
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handleDelete(product); }}
-                            className="text-xs text-red-400 hover:text-red-600"
-                          >
-                            Xoá
-                          </button>
+                          <button onClick={(e) => { e.stopPropagation(); handleDelete(product); }}
+                            className="text-xs text-red-400 hover:text-red-600">Xoá</button>
                         )}
                       </div>
                     </td>
