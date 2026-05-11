@@ -37,6 +37,7 @@ export default function ReportsPage() {
   const [peakHours, setPeakHours] = useState<any[]>([]);
   const [byStaff, setByStaff] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [tooltip, setTooltip] = useState<{ x: number; y: number; content: string } | null>(null);
 
   useEffect(() => {
     if (user?.branch?.id) {
@@ -90,10 +91,24 @@ export default function ReportsPage() {
   const totalSource = bySource.reduce((s, d) => s + d.orders, 0);
   const totalProducts = topProducts.reduce((s, d) => s + d.quantity, 0);
 
+  const chartData = range === 'year' ? revenueByMonth : revenue;
+  const chartMax = range === 'year' ? maxMonth : maxRevenue;
+  const totalChartRevenue = chartData.reduce((s, d) => s + d.revenue, 0);
+  const totalChartOrders = chartData.reduce((s, d) => s + d.orders, 0);
+
   if (!branchId) return <div className="text-center py-20 text-gray-400">Đang tải...</div>;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" onClick={() => setTooltip(null)}>
+      {/* Tooltip toàn cục */}
+      {tooltip && (
+        <div
+          className="fixed z-50 bg-gray-800 text-white text-xs px-3 py-2 rounded-lg shadow-lg pointer-events-none"
+          style={{ left: tooltip.x + 12, top: tooltip.y - 40 }}
+          dangerouslySetInnerHTML={{ __html: tooltip.content }}
+        />
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-2xl font-bold text-gray-800">📈 Báo cáo doanh thu</h1>
@@ -162,73 +177,104 @@ export default function ReportsPage() {
             ))}
           </div>
 
-          {/* Biểu đồ doanh thu */}
+          {/* Biểu đồ cột dọc */}
           <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
-            <h2 className="font-semibold text-gray-700 mb-4">
-              {range === 'year' ? 'Doanh thu theo tháng' : 'Doanh thu theo ngày'}
-            </h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-semibold text-gray-700">
+                {range === 'year' ? 'Doanh thu theo tháng' : 'Doanh thu theo ngày'}
+              </h2>
+              <div className="text-right">
+                <p className="text-sm font-semibold text-orange-600">{fmt(totalChartRevenue)}</p>
+                <p className="text-xs text-gray-400">{totalChartOrders} đơn</p>
+              </div>
+            </div>
 
-            {range === 'year' ? (
-              revenueByMonth.length === 0 ? (
-                <p className="text-center text-gray-300 py-8">Không có dữ liệu</p>
-              ) : (
-                <div className="space-y-2">
-                  {revenueByMonth.map((d) => (
-                    <div key={d.month} className="flex items-center gap-3">
-                      <span className="text-xs text-gray-400 w-16 flex-shrink-0">
-                        Tháng {d.month}
-                      </span>
-                      <div className="flex-1 bg-gray-100 rounded-full h-7 overflow-hidden">
-                        <div
-                          className="bg-gradient-to-r from-orange-400 to-orange-500 h-full rounded-full flex items-center px-3 transition-all"
-                          style={{
-                            width: `${(d.revenue / maxMonth) * 100}%`,
-                            minWidth: d.revenue > 0 ? '2%' : '0',
-                          }}
-                        >
-                          {d.revenue > 0 && (
-                            <span className="text-xs text-white font-medium truncate">
-                              {fmt(d.revenue)}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <span className="text-xs text-gray-400 w-12 text-right">{d.orders} đơn</span>
-                    </div>
-                  ))}
-                </div>
-              )
-            ) : revenue.length === 0 ? (
+            {chartData.length === 0 ? (
               <p className="text-center text-gray-300 py-8">Không có dữ liệu</p>
             ) : (
-              <div className="space-y-2">
-                {revenue.map((d) => (
-                  <div key={d.date} className="flex items-center gap-3">
-                    <span className="text-xs text-gray-400 w-16 flex-shrink-0">
-                      {new Date(d.date).toLocaleDateString('vi-VN', {
-                        day: '2-digit',
-                        month: '2-digit',
-                      })}
-                    </span>
-                    <div className="flex-1 bg-gray-100 rounded-full h-7 overflow-hidden">
-                      <div
-                        className="bg-gradient-to-r from-orange-400 to-orange-500 h-full rounded-full flex items-center px-3 transition-all"
-                        style={{
-                          width: `${(d.revenue / maxRevenue) * 100}%`,
-                          minWidth: d.revenue > 0 ? '2%' : '0',
-                        }}
-                      >
-                        {d.revenue > 0 && (
-                          <span className="text-xs text-white font-medium truncate">
-                            {fmt(d.revenue)}
-                          </span>
-                        )}
+              <>
+                {/* Trục Y gợi ý */}
+                <div className="flex gap-1 relative" style={{ height: '180px' }}>
+                  {/* Đường kẻ ngang mờ */}
+                  <div className="absolute inset-0 flex flex-col justify-between pointer-events-none pb-0">
+                    {[100, 75, 50, 25, 0].map((p) => (
+                      <div key={p} className="flex items-center gap-1 w-full">
+                        <span className="text-xs text-gray-200 w-8 text-right flex-shrink-0">
+                          {p > 0 ? fmt((chartMax * p) / 100).replace('đ', '') : '0'}
+                        </span>
+                        <div className="flex-1 border-t border-gray-100" />
                       </div>
-                    </div>
-                    <span className="text-xs text-gray-400 w-12 text-right">{d.orders} đơn</span>
+                    ))}
                   </div>
-                ))}
-              </div>
+
+                  {/* Các cột */}
+                  <div className="flex items-end gap-1 flex-1 pl-10 pb-0">
+                    {chartData.map((d: any, i: number) => {
+                      const heightPct = chartMax > 0 ? (d.revenue / chartMax) * 100 : 0;
+                      const label =
+                        range === 'year'
+                          ? `T${d.month}`
+                          : new Date(d.date).toLocaleDateString('vi-VN', {
+                              day: '2-digit',
+                              month: '2-digit',
+                            });
+                      const showLabel =
+                        range === 'year' ||
+                        chartData.length <= 14 ||
+                        i === 0 ||
+                        i === chartData.length - 1 ||
+                        i % Math.ceil(chartData.length / 10) === 0;
+                      const tooltipContent =
+                        range === 'year'
+                          ? `<b>Tháng ${d.month}</b><br/>${fmt(d.revenue)}<br/>${d.orders} đơn`
+                          : `<b>${label}</b><br/>${fmt(d.revenue)}<br/>${d.orders} đơn`;
+
+                      return (
+                        <div
+                          key={range === 'year' ? d.month : d.date}
+                          className="flex-1 flex flex-col items-center justify-end cursor-pointer"
+                          style={{ height: '160px' }}
+                          onMouseMove={(e) =>
+                            setTooltip({ x: e.clientX, y: e.clientY, content: tooltipContent })
+                          }
+                          onMouseLeave={() => setTooltip(null)}
+                        >
+                          <div
+                            className={`w-full rounded-t-sm transition-all ${d.revenue > 0 ? 'bg-gradient-to-t from-orange-500 to-orange-300 hover:from-orange-600 hover:to-orange-400' : 'bg-gray-100'}`}
+                            style={{ height: `${Math.max(heightPct, d.revenue > 0 ? 2 : 0)}%` }}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Label trục X */}
+                <div className="flex gap-1 pl-10 mt-1">
+                  {chartData.map((d: any, i: number) => {
+                    const label =
+                      range === 'year'
+                        ? `T${d.month}`
+                        : new Date(d.date).toLocaleDateString('vi-VN', {
+                            day: '2-digit',
+                            month: '2-digit',
+                          });
+                    const showLabel =
+                      range === 'year' ||
+                      chartData.length <= 14 ||
+                      i === 0 ||
+                      i === chartData.length - 1 ||
+                      i % Math.ceil(chartData.length / 10) === 0;
+                    return (
+                      <div key={range === 'year' ? d.month : d.date} className="flex-1 text-center">
+                        <span className="text-xs text-gray-400 truncate block">
+                          {showLabel ? label : ''}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
             )}
           </div>
 
