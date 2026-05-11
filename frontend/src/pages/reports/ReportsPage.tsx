@@ -25,10 +25,30 @@ const SOURCE_LABEL: Record<string, string> = {
 
 const DAY_LABEL = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
 
+function getWeekRange(offset: number) {
+  const now = new Date();
+  const day = now.getDay();
+  const diffToMonday = day === 0 ? -6 : 1 - day;
+  const monday = new Date(now);
+  monday.setDate(now.getDate() + diffToMonday + offset * 7);
+  monday.setHours(0, 0, 0, 0);
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  const fmtISO = (d: Date) => d.toISOString().split('T')[0];
+  const fmtVN = (d: Date) => d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
+  return {
+    startDate: fmtISO(monday),
+    endDate: fmtISO(sunday),
+    label: `${fmtVN(monday)} – ${fmtVN(sunday)}`,
+  };
+}
+
 export default function ReportsPage() {
   const user = useAuthStore((s) => s.user);
   const [branchId, setBranchId] = useState(user?.branch?.id || '');
   const [range, setRange] = useState('week');
+  const [weekOffset, setWeekOffset] = useState(0);
+  const [loading, setLoading] = useState(true);
 
   const [summary, setSummary] = useState<any>(null);
   const [revenue, setRevenue] = useState<any[]>([]);
@@ -38,7 +58,6 @@ export default function ReportsPage() {
   const [bySource, setBySource] = useState<any[]>([]);
   const [peakHours, setPeakHours] = useState<any[]>([]);
   const [byStaff, setByStaff] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (user?.branch?.id) {
@@ -56,10 +75,17 @@ export default function ReportsPage() {
   useEffect(() => {
     if (!branchId) return;
     setLoading(true);
-    const q = `branchId=${branchId}&range=${range}`;
+
+    // Tính query string — tuần dùng startDate/endDate theo offset
+    let q = `branchId=${branchId}&range=${range}`;
+    if (range === 'week') {
+      const { startDate, endDate } = getWeekRange(weekOffset);
+      q = `branchId=${branchId}&range=week&startDate=${startDate}&endDate=${endDate}`;
+    }
+
     const year = new Date().getFullYear();
     Promise.all([
-      api.get(`/dashboard/summary?${q}`),
+      api.get(`/dashboard/summary?branchId=${branchId}`),
       api.get(`/dashboard/revenue?${q}`),
       api.get(`/dashboard/revenue-by-month?branchId=${branchId}&year=${year}`),
       api.get(`/dashboard/top-products?${q}`),
@@ -79,7 +105,7 @@ export default function ReportsPage() {
         setByStaff(st.data.data);
       })
       .finally(() => setLoading(false));
-  }, [branchId, range]);
+  }, [branchId, range, weekOffset]);
 
   const fmt = (n: number) => new Intl.NumberFormat('vi-VN').format(n) + 'đ';
   const pct = (n: number) => (n > 0 ? `+${n}%` : `${n}%`);
@@ -92,13 +118,11 @@ export default function ReportsPage() {
   const totalSource = bySource.reduce((s, d) => s + d.orders, 0);
   const totalProducts = topProducts.reduce((s, d) => s + d.quantity, 0);
 
-  const getDayLabel = (dateStr: string) => {
-    const d = new Date(dateStr);
-    return DAY_LABEL[d.getDay()];
-  };
-
+  const getDayLabel = (dateStr: string) => DAY_LABEL[new Date(dateStr).getDay()];
   const getDateLabel = (dateStr: string) =>
     new Date(dateStr).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
+
+  const weekRange = getWeekRange(weekOffset);
 
   if (!branchId) return <div className="text-center py-20 text-gray-400">Đang tải...</div>;
 
@@ -111,8 +135,13 @@ export default function ReportsPage() {
           {RANGE_OPTIONS.map((o) => (
             <button
               key={o.value}
-              onClick={() => setRange(o.value)}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${range === o.value ? 'bg-orange-500 text-white' : 'text-gray-600 hover:bg-gray-50'}`}
+              onClick={() => {
+                setRange(o.value);
+                setWeekOffset(0);
+              }}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                range === o.value ? 'bg-orange-500 text-white' : 'text-gray-600 hover:bg-gray-50'
+              }`}
             >
               {o.label}
             </button>
@@ -174,13 +203,50 @@ export default function ReportsPage() {
 
           {/* Biểu đồ doanh thu */}
           <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
-            <h2 className="font-semibold text-gray-700 mb-4">
-              {range === 'year'
-                ? 'Doanh thu theo tháng'
-                : range === 'week'
-                  ? 'Doanh thu theo tuần (T2 → CN)'
-                  : 'Doanh thu theo ngày'}
-            </h2>
+            {/* Tiêu đề + điều hướng tuần */}
+            <div className="flex items-start justify-between flex-wrap gap-2 mb-4">
+              <div>
+                <h2 className="font-semibold text-gray-700">
+                  {range === 'year'
+                    ? 'Doanh thu theo tháng'
+                    : range === 'week'
+                      ? `Tuần ${weekRange.label}`
+                      : 'Doanh thu theo ngày'}
+                </h2>
+                {range === 'week' && weekOffset < 0 && (
+                  <p className="text-xs text-orange-500 mt-0.5">
+                    {Math.abs(weekOffset)} tuần trước
+                  </p>
+                )}
+              </div>
+
+              {/* Nút điều hướng tuần */}
+              {range === 'week' && (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setWeekOffset((o) => o - 1)}
+                    className="px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-600 text-sm font-medium"
+                  >
+                    ← Trước
+                  </button>
+                  <button
+                    onClick={() => setWeekOffset((o) => o + 1)}
+                    disabled={weekOffset >= 0}
+                    className="px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-600 text-sm font-medium disabled:opacity-30 disabled:cursor-not-allowed"
+                  >
+                    Sau →
+                  </button>
+                  {weekOffset < 0 && (
+                    <button
+                      onClick={() => setWeekOffset(0)}
+                      className="px-3 py-1.5 rounded-lg bg-orange-100 text-orange-600 text-sm font-medium hover:bg-orange-200"
+                    >
+                      Tuần này
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
 
             {range === 'year' ? (
               revenueByMonth.length === 0 ? (
