@@ -27,20 +27,30 @@ const DAY_LABEL = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
 
 function getWeekRange(offset: number) {
   const now = new Date();
-  const day = now.getDay();
+  const localNow = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const day = localNow.getDay();
   const diffToMonday = day === 0 ? -6 : 1 - day;
-  const monday = new Date(now);
-  monday.setDate(now.getDate() + diffToMonday + offset * 7);
-  monday.setHours(0, 0, 0, 0);
+  const monday = new Date(localNow);
+  monday.setDate(localNow.getDate() + diffToMonday + offset * 7);
   const sunday = new Date(monday);
   sunday.setDate(monday.getDate() + 6);
-  const fmtISO = (d: Date) => d.toISOString().split('T')[0];
+
+  // Dùng local date format thay vì toISOString() để tránh lệch UTC
+  const fmtISO = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   const fmtVN = (d: Date) => d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
+
   return {
     startDate: fmtISO(monday),
     endDate: fmtISO(sunday),
     label: `${fmtVN(monday)} – ${fmtVN(sunday)}`,
   };
+}
+
+// Parse "YYYY-MM-DD" thành local Date (không bị lệch UTC)
+function parseDateLocal(dateStr: string) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(y, m - 1, d);
 }
 
 export default function ReportsPage() {
@@ -76,7 +86,6 @@ export default function ReportsPage() {
     if (!branchId) return;
     setLoading(true);
 
-    // Tính query string — tuần dùng startDate/endDate theo offset
     let q = `branchId=${branchId}&range=${range}`;
     if (range === 'week') {
       const { startDate, endDate } = getWeekRange(weekOffset);
@@ -118,9 +127,10 @@ export default function ReportsPage() {
   const totalSource = bySource.reduce((s, d) => s + d.orders, 0);
   const totalProducts = topProducts.reduce((s, d) => s + d.quantity, 0);
 
-  const getDayLabel = (dateStr: string) => DAY_LABEL[new Date(dateStr).getDay()];
+  // Dùng parseDateLocal để tránh lệch ngày do UTC
+  const getDayLabel = (dateStr: string) => DAY_LABEL[parseDateLocal(dateStr).getDay()];
   const getDateLabel = (dateStr: string) =>
-    new Date(dateStr).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
+    parseDateLocal(dateStr).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
 
   const weekRange = getWeekRange(weekOffset);
 
@@ -203,7 +213,6 @@ export default function ReportsPage() {
 
           {/* Biểu đồ doanh thu */}
           <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
-            {/* Tiêu đề + điều hướng tuần */}
             <div className="flex items-start justify-between flex-wrap gap-2 mb-4">
               <div>
                 <h2 className="font-semibold text-gray-700">
@@ -220,7 +229,6 @@ export default function ReportsPage() {
                 )}
               </div>
 
-              {/* Nút điều hướng tuần */}
               {range === 'week' && (
                 <div className="flex items-center gap-2">
                   <button
