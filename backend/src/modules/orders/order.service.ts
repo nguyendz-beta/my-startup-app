@@ -159,9 +159,21 @@ export const orderService = {
     if (status === 'COMPLETED') {
       const db = prisma as any;
       for (const item of order.items) {
-        const ingredients = await db.productIngredient.findMany({
-          where: { productId: item.productId },
+        // Ưu tiên nguyên liệu riêng theo size (variantId)
+        let ingredients = await db.productIngredient.findMany({
+          where: {
+            productId: item.productId,
+            variantId: item.variantId ?? null,
+          },
         });
+
+        // Nếu size đó chưa có nguyên liệu riêng → fallback về nguyên liệu chung
+        if (ingredients.length === 0 && item.variantId) {
+          ingredients = await db.productIngredient.findMany({
+            where: { productId: item.productId, variantId: null },
+          });
+        }
+
         for (const ing of ingredients) {
           const invItem = await db.inventoryItem.findFirst({
             where: { id: ing.itemId, branchId },
