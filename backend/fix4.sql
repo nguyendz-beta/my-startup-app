@@ -1,0 +1,1 @@
+ALTER TABLE product_ingredients ADD CONSTRAINT product_ingredients_variantId_fkey FOREIGN KEY (variantId) REFERENCES product_variants(id) ON DELETE CASCADE ON UPDATE CASCADE;
