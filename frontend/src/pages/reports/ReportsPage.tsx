@@ -30,6 +30,7 @@ export default function ReportsPage() {
 
   const [summary, setSummary] = useState<any>(null);
   const [revenue, setRevenue] = useState<any[]>([]);
+  const [revenueByMonth, setRevenueByMonth] = useState<any[]>([]);
   const [topProducts, setTopProducts] = useState<any[]>([]);
   const [byPayment, setByPayment] = useState<any[]>([]);
   const [bySource, setBySource] = useState<any[]>([]);
@@ -54,18 +55,21 @@ export default function ReportsPage() {
     if (!branchId) return;
     setLoading(true);
     const q = `branchId=${branchId}&range=${range}`;
+    const year = new Date().getFullYear();
     Promise.all([
       api.get(`/dashboard/summary?${q}`),
       api.get(`/dashboard/revenue?${q}`),
+      api.get(`/dashboard/revenue-by-month?branchId=${branchId}&year=${year}`),
       api.get(`/dashboard/top-products?${q}`),
       api.get(`/dashboard/by-payment?${q}`),
       api.get(`/dashboard/by-source?${q}`),
       api.get(`/dashboard/peak-hours?${q}`),
       api.get(`/dashboard/by-staff?${q}`),
     ])
-      .then(([s, r, tp, bp, bs, ph, st]) => {
+      .then(([s, r, rbm, tp, bp, bs, ph, st]) => {
         setSummary(s.data.data);
         setRevenue(r.data.data);
+        setRevenueByMonth(rbm.data.data);
         setTopProducts(tp.data.data);
         setByPayment(bp.data.data);
         setBySource(bs.data.data);
@@ -80,6 +84,7 @@ export default function ReportsPage() {
   const pctColor = (n: number) => (n >= 0 ? 'text-green-600' : 'text-red-500');
 
   const maxRevenue = Math.max(...revenue.map((d) => d.revenue), 1);
+  const maxMonth = Math.max(...revenueByMonth.map((d) => d.revenue), 1);
   const maxHour = Math.max(...peakHours.map((d) => d.orders), 1);
   const totalPayment = byPayment.reduce((s, d) => s + d.revenue, 0);
   const totalSource = bySource.reduce((s, d) => s + d.orders, 0);
@@ -157,10 +162,43 @@ export default function ReportsPage() {
             ))}
           </div>
 
-          {/* Biểu đồ doanh thu theo ngày */}
+          {/* Biểu đồ doanh thu */}
           <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
-            <h2 className="font-semibold text-gray-700 mb-4">Doanh thu theo ngày</h2>
-            {revenue.length === 0 ? (
+            <h2 className="font-semibold text-gray-700 mb-4">
+              {range === 'year' ? 'Doanh thu theo tháng' : 'Doanh thu theo ngày'}
+            </h2>
+
+            {range === 'year' ? (
+              revenueByMonth.length === 0 ? (
+                <p className="text-center text-gray-300 py-8">Không có dữ liệu</p>
+              ) : (
+                <div className="space-y-2">
+                  {revenueByMonth.map((d) => (
+                    <div key={d.month} className="flex items-center gap-3">
+                      <span className="text-xs text-gray-400 w-16 flex-shrink-0">
+                        Tháng {d.month}
+                      </span>
+                      <div className="flex-1 bg-gray-100 rounded-full h-7 overflow-hidden">
+                        <div
+                          className="bg-gradient-to-r from-orange-400 to-orange-500 h-full rounded-full flex items-center px-3 transition-all"
+                          style={{
+                            width: `${(d.revenue / maxMonth) * 100}%`,
+                            minWidth: d.revenue > 0 ? '2%' : '0',
+                          }}
+                        >
+                          {d.revenue > 0 && (
+                            <span className="text-xs text-white font-medium truncate">
+                              {fmt(d.revenue)}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <span className="text-xs text-gray-400 w-12 text-right">{d.orders} đơn</span>
+                    </div>
+                  ))}
+                </div>
+              )
+            ) : revenue.length === 0 ? (
               <p className="text-center text-gray-300 py-8">Không có dữ liệu</p>
             ) : (
               <div className="space-y-2">
@@ -262,7 +300,7 @@ export default function ReportsPage() {
                 <p className="text-center text-gray-300 py-4">Không có dữ liệu</p>
               ) : (
                 <div className="space-y-3">
-                  {byStaff.map((s, i) => (
+                  {byStaff.map((s) => (
                     <div key={s.id} className="flex items-center gap-3">
                       <span className="w-8 h-8 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center text-sm font-bold flex-shrink-0">
                         {s.name.charAt(0)}

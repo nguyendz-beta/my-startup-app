@@ -74,10 +74,52 @@ router.get('/revenue', async (req, res) => {
     }
     for (const o of orders) {
       const key = o.createdAt.toISOString().split('T')[0];
-      if (map[key]) { map[key].revenue += o.total; map[key].orders += 1; }
+      if (map[key]) {
+        map[key].revenue += o.total;
+        map[key].orders += 1;
+      }
     }
 
-    return res.json({ success: true, data: Object.entries(map).map(([date, v]) => ({ date, ...v })) });
+    return res.json({
+      success: true,
+      data: Object.entries(map).map(([date, v]) => ({ date, ...v })),
+    });
+  } catch (e: any) {
+    return res.status(400).json({ success: false, message: e.message });
+  }
+});
+
+// ── Doanh thu theo tháng (dùng cho range=year) ───────────────────
+router.get('/revenue-by-month', async (req, res) => {
+  try {
+    const user = (req as any).user;
+    const branchId = await resolveBranchId(user, req.query);
+    const year = parseInt(req.query.year as string) || new Date().getFullYear();
+
+    const orders = await prisma.order.findMany({
+      where: {
+        branchId,
+        status: 'COMPLETED',
+        createdAt: {
+          gte: new Date(`${year}-01-01T00:00:00`),
+          lte: new Date(`${year}-12-31T23:59:59`),
+        },
+      },
+      select: { total: true, createdAt: true },
+    });
+
+    const map: Record<number, { revenue: number; orders: number }> = {};
+    for (let m = 1; m <= 12; m++) map[m] = { revenue: 0, orders: 0 };
+    for (const o of orders) {
+      const m = o.createdAt.getMonth() + 1;
+      map[m].revenue += o.total;
+      map[m].orders += 1;
+    }
+
+    return res.json({
+      success: true,
+      data: Object.entries(map).map(([month, v]) => ({ month: parseInt(month), ...v })),
+    });
   } catch (e: any) {
     return res.status(400).json({ success: false, message: e.message });
   }
@@ -91,35 +133,43 @@ router.get('/summary', async (req, res) => {
 
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const yesterdayStart = new Date(todayStart); yesterdayStart.setDate(yesterdayStart.getDate() - 1);
-    const weekStart = new Date(todayStart); weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1);
-    const lastWeekStart = new Date(weekStart); lastWeekStart.setDate(lastWeekStart.getDate() - 7);
-    const lastWeekEnd = new Date(weekStart); lastWeekEnd.setDate(lastWeekEnd.getDate() - 1);
+    const yesterdayStart = new Date(todayStart);
+    yesterdayStart.setDate(yesterdayStart.getDate() - 1);
+    const weekStart = new Date(todayStart);
+    weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1);
+    const lastWeekStart = new Date(weekStart);
+    lastWeekStart.setDate(lastWeekStart.getDate() - 7);
+    const lastWeekEnd = new Date(weekStart);
+    lastWeekEnd.setDate(lastWeekEnd.getDate() - 1);
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
     const yearStart = new Date(now.getFullYear(), 0, 1);
 
-    const query = (gte: Date, lte: Date) => prisma.order.aggregate({
-      where: { branchId, status: 'COMPLETED', createdAt: { gte, lte } },
-      _sum: { total: true }, _count: true,
-    });
+    const query = (gte: Date, lte: Date) =>
+      prisma.order.aggregate({
+        where: { branchId, status: 'COMPLETED', createdAt: { gte, lte } },
+        _sum: { total: true },
+        _count: true,
+      });
 
-    const [today, yesterday, thisWeek, lastWeek, thisMonth, lastMonth, thisYear] = await Promise.all([
-      query(todayStart, new Date()),
-      query(yesterdayStart, new Date(todayStart.getTime() - 1)),
-      query(weekStart, new Date()),
-      query(lastWeekStart, lastWeekEnd),
-      query(monthStart, new Date()),
-      query(lastMonthStart, lastMonthEnd),
-      query(yearStart, new Date()),
-    ]);
+    const [today, yesterday, thisWeek, lastWeek, thisMonth, lastMonth, thisYear] =
+      await Promise.all([
+        query(todayStart, new Date()),
+        query(yesterdayStart, new Date(todayStart.getTime() - 1)),
+        query(weekStart, new Date()),
+        query(lastWeekStart, lastWeekEnd),
+        query(monthStart, new Date()),
+        query(lastMonthStart, lastMonthEnd),
+        query(yearStart, new Date()),
+      ]);
 
     const pct = (curr: number, prev: number) =>
       prev === 0 ? 100 : Math.round(((curr - prev) / prev) * 100);
 
     return res.json({
-      success: true, data: {
+      success: true,
+      data: {
         today: { revenue: today._sum.total || 0, orders: today._count },
         yesterday: { revenue: yesterday._sum.total || 0, orders: yesterday._count },
         todayVsYesterday: pct(today._sum.total || 0, yesterday._sum.total || 0),
@@ -147,8 +197,12 @@ router.get('/top-products', async (req, res) => {
     const items = await prisma.orderItem.findMany({
       where: {
         order: {
-          branchId, status: 'COMPLETED',
-          createdAt: { gte: new Date(startDate + 'T00:00:00'), lte: new Date(endDate + 'T23:59:59') },
+          branchId,
+          status: 'COMPLETED',
+          createdAt: {
+            gte: new Date(startDate + 'T00:00:00'),
+            lte: new Date(endDate + 'T23:59:59'),
+          },
         },
       },
       include: { product: { select: { name: true } } },
@@ -156,7 +210,8 @@ router.get('/top-products', async (req, res) => {
 
     const map: Record<string, { name: string; quantity: number; revenue: number }> = {};
     for (const item of items) {
-      if (!map[item.productId]) map[item.productId] = { name: item.product.name, quantity: 0, revenue: 0 };
+      if (!map[item.productId])
+        map[item.productId] = { name: item.product.name, quantity: 0, revenue: 0 };
       map[item.productId].quantity += item.quantity;
       map[item.productId].revenue += item.subtotal;
     }
@@ -181,7 +236,8 @@ router.get('/by-payment', async (req, res) => {
 
     const orders = await prisma.order.findMany({
       where: {
-        branchId, status: 'COMPLETED',
+        branchId,
+        status: 'COMPLETED',
         createdAt: { gte: new Date(startDate + 'T00:00:00'), lte: new Date(endDate + 'T23:59:59') },
       },
       select: { total: true, paymentMethod: true },
@@ -195,7 +251,10 @@ router.get('/by-payment', async (req, res) => {
       map[key].orders += 1;
     }
 
-    return res.json({ success: true, data: Object.entries(map).map(([method, v]) => ({ method, ...v })) });
+    return res.json({
+      success: true,
+      data: Object.entries(map).map(([method, v]) => ({ method, ...v })),
+    });
   } catch (e: any) {
     return res.status(400).json({ success: false, message: e.message });
   }
@@ -210,7 +269,8 @@ router.get('/by-source', async (req, res) => {
 
     const orders = await prisma.order.findMany({
       where: {
-        branchId, status: 'COMPLETED',
+        branchId,
+        status: 'COMPLETED',
         createdAt: { gte: new Date(startDate + 'T00:00:00'), lte: new Date(endDate + 'T23:59:59') },
       },
       select: { total: true, source: true },
@@ -224,7 +284,10 @@ router.get('/by-source', async (req, res) => {
       map[key].orders += 1;
     }
 
-    return res.json({ success: true, data: Object.entries(map).map(([source, v]) => ({ source, ...v })) });
+    return res.json({
+      success: true,
+      data: Object.entries(map).map(([source, v]) => ({ source, ...v })),
+    });
   } catch (e: any) {
     return res.status(400).json({ success: false, message: e.message });
   }
@@ -239,7 +302,8 @@ router.get('/peak-hours', async (req, res) => {
 
     const orders = await prisma.order.findMany({
       where: {
-        branchId, status: 'COMPLETED',
+        branchId,
+        status: 'COMPLETED',
         createdAt: { gte: new Date(startDate + 'T00:00:00'), lte: new Date(endDate + 'T23:59:59') },
       },
       select: { total: true, createdAt: true },
@@ -253,7 +317,10 @@ router.get('/peak-hours', async (req, res) => {
       map[h].orders += 1;
     }
 
-    return res.json({ success: true, data: Object.entries(map).map(([hour, v]) => ({ hour: parseInt(hour), ...v })) });
+    return res.json({
+      success: true,
+      data: Object.entries(map).map(([hour, v]) => ({ hour: parseInt(hour), ...v })),
+    });
   } catch (e: any) {
     return res.status(400).json({ success: false, message: e.message });
   }
@@ -268,7 +335,8 @@ router.get('/by-staff', async (req, res) => {
 
     const orders = await prisma.order.findMany({
       where: {
-        branchId, status: 'COMPLETED',
+        branchId,
+        status: 'COMPLETED',
         createdAt: { gte: new Date(startDate + 'T00:00:00'), lte: new Date(endDate + 'T23:59:59') },
         cashierId: { not: null },
       },
