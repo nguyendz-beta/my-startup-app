@@ -60,10 +60,13 @@ export default function OrdersPage() {
           COMPLETED: 4,
           CANCELLED: 5,
         };
-        const sorted = (r.data.data || []).sort(
-          (a: Order, b: Order) =>
-            (STATUS_PRIORITY[a.status] ?? 9) - (STATUS_PRIORITY[b.status] ?? 9),
-        );
+        const sorted = (r.data.data || []).sort((a: Order, b: Order) => {
+          const pa = STATUS_PRIORITY[a.status] ?? 9;
+          const pb = STATUS_PRIORITY[b.status] ?? 9;
+          if (pa !== pb) return pa - pb;
+          // Cùng trạng thái → mới nhất lên đầu
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        });
         setOrders(sorted);
       })
       .catch(() => setOrders([]))

@@ -92,7 +92,12 @@ export const orderService = {
 
     const total = subtotal - discountAmount;
 
-    const orderCode = `ORD${Date.now()}${Math.random().toString(36).slice(2, 5).toUpperCase()}`;
+    const now = new Date();
+    const datePart = `${String(now.getFullYear()).slice(2)}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+    const todayOrders = await prisma.order.count({
+      where: { createdAt: { gte: new Date(now.getFullYear(), now.getMonth(), now.getDate()) } },
+    });
+    const orderCode = `ORD-${datePart}-${String(todayOrders + 1).padStart(3, '0')}-${Math.random().toString(36).slice(2, 4).toUpperCase()}`;
 
     const status = data.autoComplete ? 'COMPLETED' : 'PENDING';
 
