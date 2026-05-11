@@ -41,6 +41,7 @@ export default function InventoryPage() {
   const [selected, setSelected] = useState<InventoryItem | null>(null);
   const [logs, setLogs] = useState<StockLog[]>([]);
   const [saving, setSaving] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [search, setSearch] = useState('');
   const [form, setForm] = useState(EMPTY_FORM);
   const [stockForm, setStockForm] = useState({ type: 'IN', quantity: '', note: '' });
@@ -90,8 +91,7 @@ export default function InventoryPage() {
     try {
       if (editingItem) {
         await api.put(`/inventory/${editingItem.id}`, {
-          name: form.name,
-          unit: form.unit,
+          name: form.name, unit: form.unit,
           minQuantity: parseFloat(form.minQuantity),
           costPrice: parseFloat(form.costPrice),
           category: form.category,
@@ -99,8 +99,7 @@ export default function InventoryPage() {
         toast.success('Cập nhật thành công!');
       } else {
         await api.post('/inventory', {
-          ...form,
-          branchId,
+          ...form, branchId,
           quantity: parseFloat(form.quantity),
           minQuantity: parseFloat(form.minQuantity),
           costPrice: parseFloat(form.costPrice),
@@ -127,6 +126,38 @@ export default function InventoryPage() {
     } catch (e: any) {
       toast.error(e.response?.data?.message || 'Lỗi xoá');
     }
+  };
+
+  const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImporting(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('branchId', branchId);
+      const token = localStorage.getItem('token');
+      const { default: axios } = await import('axios');
+      const res = await axios.post('/api/upload/inventory-excel', formData, {
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' },
+      });
+      toast.success(res.data.message);
+      loadItems();
+    } catch (e: any) {
+      toast.error(e.response?.data?.message || 'Lỗi import Excel');
+    } finally {
+      setImporting(false);
+      e.target.value = '';
+    }
+  };
+
+  const downloadTemplate = () => {
+    const csv = 'Tên nguyên liệu,Danh mục,Đơn vị,Số lượng,Tối thiểu,Giá nhập\nCà phê Arabica,Cà phê,kg,50,10,200000\nSữa tươi,Sữa,lít,20,5,30000\n';
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'mau_nhap_kho.csv'; a.click();
+    URL.revokeObjectURL(url);
   };
 
   const openStockModal = async (item: InventoryItem) => {
@@ -170,15 +201,28 @@ export default function InventoryPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Quản lý kho</h1>
           <p className="text-gray-500 text-sm mt-1">{items.length} nguyên liệu</p>
         </div>
-        <button onClick={openCreate}
-          className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-medium">
-          + Thêm nguyên liệu
-        </button>
+        <div className="flex gap-2 flex-wrap">
+          {/* Tải mẫu */}
+          <button onClick={downloadTemplate}
+            className="bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-2 rounded-lg text-sm font-medium">
+            📥 Tải mẫu Excel
+          </button>
+          {/* Import Excel */}
+          <label className={`cursor-pointer px-3 py-2 rounded-lg text-sm font-medium transition-colors ${importing ? 'bg-green-100 text-green-600' : 'bg-green-500 hover:bg-green-600 text-white'}`}>
+            {importing ? '⏳ Đang import...' : '📊 Import Excel'}
+            <input type="file" accept=".xlsx,.xls,.csv" className="hidden"
+              disabled={importing} onChange={handleImportExcel} />
+          </label>
+          <button onClick={openCreate}
+            className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-medium">
+            + Thêm nguyên liệu
+          </button>
+        </div>
       </div>
 
       {lowStock.length > 0 && (
@@ -275,17 +319,11 @@ export default function InventoryPage() {
                   <td className="px-4 py-3">
                     <div className="flex gap-2">
                       <button onClick={() => openStockModal(item)}
-                        className="text-xs text-orange-500 hover:text-orange-700 font-medium">
-                        Nhập/Xuất
-                      </button>
+                        className="text-xs text-orange-500 hover:text-orange-700 font-medium">Nhập/Xuất</button>
                       <button onClick={() => openEdit(item)}
-                        className="text-xs text-blue-500 hover:text-blue-700 font-medium">
-                        Sửa
-                      </button>
+                        className="text-xs text-blue-500 hover:text-blue-700 font-medium">Sửa</button>
                       <button onClick={() => handleDelete(item)}
-                        className="text-xs text-red-400 hover:text-red-600 font-medium">
-                        Xoá
-                      </button>
+                        className="text-xs text-red-400 hover:text-red-600 font-medium">Xoá</button>
                     </div>
                   </td>
                 </tr>
@@ -309,7 +347,6 @@ export default function InventoryPage() {
               </div>
               <button onClick={() => setShowStock(false)} className="text-gray-400 hover:text-gray-600 text-xl">×</button>
             </div>
-
             <form onSubmit={handleStock} className="space-y-3 mb-5">
               <div className="flex gap-2">
                 {['IN', 'OUT', 'ADJUST'].map((t) => (
@@ -332,7 +369,6 @@ export default function InventoryPage() {
                 {saving ? 'Đang lưu...' : 'Xác nhận'}
               </button>
             </form>
-
             <div>
               <p className="text-sm font-medium text-gray-700 mb-2">Lịch sử nhập/xuất</p>
               <div className="space-y-2 max-h-48 overflow-auto">
