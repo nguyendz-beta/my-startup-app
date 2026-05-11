@@ -34,8 +34,16 @@ export default function POSPage() {
   const [activeCat, setActiveCat] = useState<string>('');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [showPayment, setShowPayment] = useState(false);
+  const [branchId, setBranchId] = useState(user?.branch?.id || '');
 
-  const branchId = user?.branch?.id || '';
+  useEffect(() => {
+    if (user?.branch?.id) { setBranchId(user.branch.id); return; }
+    const token = localStorage.getItem('token');
+    import('axios').then(({ default: axios }) => {
+      axios.get('/api/branches', { headers: { Authorization: `Bearer ${token}` } })
+        .then((r) => { if (r.data.data?.[0]) setBranchId(r.data.data[0].id); });
+    });
+  }, [user]);
 
   useEffect(() => {
     productApi.getCategories().then((r) => {
@@ -93,15 +101,20 @@ export default function POSPage() {
       toast.error('Giỏ hàng trống!');
       return;
     }
+    if (!branchId) {
+      toast.error('Chưa tải được chi nhánh, vui lòng thử lại!');
+      return;
+    }
     setShowPayment(true);
   };
 
   const handlePaymentConfirm = async (method: string, received: number, change: number) => {
     try {
+      if (!branchId) throw new Error('Không có branchId');
+
       const res = await orderApi.createOrder({
         branchId,
         source: 'DINE_IN',
-      
         paymentMethod: method,
         items: cart.map((i) => ({
           productId: i.productId,
@@ -115,7 +128,6 @@ export default function POSPage() {
       const cartSnapshot = [...cart];
       const totalSnapshot = total;
 
-      // In bill tự động
       printReceipt({
         order: {
           orderCode: order.orderCode,
@@ -147,8 +159,10 @@ export default function POSPage() {
           ? `Thanh toán thành công! Tiền thối: ${fmt(change)}`
           : 'Thanh toán thành công! 🎉',
       );
-    } catch {
-      toast.error('Lỗi tạo đơn hàng!');
+    } catch (e: any) {
+      const msg = e?.response?.data?.message || e?.message || 'Lỗi tạo đơn hàng!';
+      console.error('❌ Lỗi tạo đơn:', e?.response?.data || e);
+      toast.error(msg);
     }
   };
 
@@ -276,9 +290,12 @@ export default function POSPage() {
             <span>Tổng cộng</span>
             <span className="text-orange-600">{fmt(total)}</span>
           </div>
+          {!branchId && (
+            <p className="text-xs text-red-400 text-center">⚠️ Đang tải chi nhánh...</p>
+          )}
           <button
             onClick={handleCheckout}
-            disabled={cart.length === 0}
+            disabled={cart.length === 0 || !branchId}
             className="w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3 rounded-lg transition-colors disabled:opacity-50"
           >
             💳 Thanh toán
