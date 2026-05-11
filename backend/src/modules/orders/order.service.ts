@@ -1,5 +1,5 @@
-import prisma from '../../prisma/prismaClient'
-import { orderEvents } from '../../sockets/taskSocket'
+import prisma from '../../prisma/prismaClient';
+import { orderEvents } from '../../sockets/taskSocket';
 
 export const orderService = {
   async getOrders(branchId: string, filters?: { status?: string; source?: string; date?: string }) {
@@ -27,7 +27,7 @@ export const orderService = {
         },
         payment: true,
       },
-    })
+    });
   },
 
   async getOrderById(branchId: string, orderId: string) {
@@ -42,60 +42,65 @@ export const orderService = {
         payment: { include: { method: true } },
         discountR: true,
       },
-    })
-    if (!order) throw new Error('Đơn hàng không tồn tại')
-    return order
+    });
+    if (!order) throw new Error('Đơn hàng không tồn tại');
+    return order;
   },
 
-  async createOrder(branchId: string, cashierId: string | null, data: {
-    tableId?: string
-    source: string
-    note?: string
-    discountId?: string
-    autoComplete?: boolean
-    paymentMethod?: string
-    items: { productId: string; variantId?: string; quantity: number; note?: string }[]
-  }) {
-    let subtotal = 0
+  async createOrder(
+    branchId: string,
+    cashierId: string | null,
+    data: {
+      tableId?: string;
+      source: string;
+      note?: string;
+      discountId?: string;
+      autoComplete?: boolean;
+      paymentMethod?: string;
+      items: { productId: string; variantId?: string; quantity: number; note?: string }[];
+    },
+  ) {
+    let subtotal = 0;
     const itemsWithPrice = await Promise.all(
       data.items.map(async (item) => {
-        const product = await prisma.product.findUnique({ where: { id: item.productId } })
-        if (!product) throw new Error(`Sản phẩm không tồn tại: ${item.productId}`)
-        if (!product.isAvailable) throw new Error(`Sản phẩm đã hết: ${product.name}`)
+        const product = await prisma.product.findUnique({ where: { id: item.productId } });
+        if (!product) throw new Error(`Sản phẩm không tồn tại: ${item.productId}`);
+        if (!product.isAvailable) throw new Error(`Sản phẩm đã hết: ${product.name}`);
 
-        let unitPrice = product.basePrice
+        let unitPrice = product.basePrice;
         if (item.variantId) {
-          const variant = await prisma.productVariant.findUnique({ where: { id: item.variantId } })
-          if (variant) unitPrice += variant.priceModifier
+          const variant = await prisma.productVariant.findUnique({ where: { id: item.variantId } });
+          if (variant) unitPrice += variant.priceModifier;
         }
 
-        const itemSubtotal = unitPrice * item.quantity
-        subtotal += itemSubtotal
-        return { ...item, unitPrice, subtotal: itemSubtotal }
-      })
-    )
+        const itemSubtotal = unitPrice * item.quantity;
+        subtotal += itemSubtotal;
+        return { ...item, unitPrice, subtotal: itemSubtotal };
+      }),
+    );
 
-    let discountAmount = 0
+    let discountAmount = 0;
     if (data.discountId) {
-      const discount = await prisma.discount.findUnique({ where: { id: data.discountId } })
+      const discount = await prisma.discount.findUnique({ where: { id: data.discountId } });
       if (discount && discount.isActive) {
-        discountAmount = discount.type === 'PERCENTAGE'
-          ? Math.round(subtotal * (discount.value / 100))
-          : discount.value
+        discountAmount =
+          discount.type === 'PERCENTAGE'
+            ? Math.round(subtotal * (discount.value / 100))
+            : discount.value;
       }
     }
 
-    const total = subtotal - discountAmount
+    const total = subtotal - discountAmount;
 
     const todayOrders = await prisma.order.count({
       where: {
         branchId,
         createdAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) },
       },
-    })
-    const orderCode = `${String.fromCharCode(65 + (Math.floor(todayOrders / 100) % 26))}${String(todayOrders % 100 + 1).padStart(3, '0')}`
+    });
+    const orderCode = `${String.fromCharCode(65 + (Math.floor(todayOrders / 100) % 26))}${String((todayOrders % 100) + 1).padStart(3, '0')}`;
 
-    const status = data.autoComplete ? 'COMPLETED' : 'PENDING'
+    const status = data.autoComplete ? 'COMPLETED' : 'PENDING';
 
     const order = await prisma.order.create({
       data: {
@@ -130,15 +135,17 @@ export const orderService = {
         items: { include: { product: true, variant: true } },
         table: true,
       },
-    })
+    });
 
-    orderEvents.newOrder(branchId, order)
-    return order
+    orderEvents.newOrder(branchId, order);
+    return order;
   },
-
   async updateOrderStatus(branchId: string, orderId: string, status: string) {
-    const order = await prisma.order.findFirst({ where: { id: orderId, branchId } })
-    if (!order) throw new Error('Đơn hàng không tồn tại')
+    const order = await prisma.order.findFirst({
+      where: { id: orderId, branchId },
+      include: { items: true },
+    });
+    if (!order) throw new Error('Đơn hàng không tồn tại');
 
     const updatedOrder = await prisma.order.update({
       where: { id: orderId },
@@ -146,15 +153,49 @@ export const orderService = {
         status: status as any,
         ...(status === 'COMPLETED' && { completedAt: new Date() }),
       },
-    })
+    });
 
-    orderEvents.orderStatusChanged(branchId, updatedOrder)
-    return updatedOrder
+    // Tự động trừ kho khi COMPLETED
+    if (status === 'COMPLETED') {
+      const db = prisma as any;
+      for (const item of order.items) {
+        const ingredients = await db.productIngredient.findMany({
+          where: { productId: item.productId },
+        });
+        for (const ing of ingredients) {
+          const invItem = await db.inventoryItem.findFirst({
+            where: { id: ing.itemId, branchId },
+          });
+          if (!invItem) continue;
+          const deduct = ing.quantity * item.quantity;
+          await db.inventoryItem.update({
+            where: { id: ing.itemId },
+            data: { quantity: Math.max(0, invItem.quantity - deduct) },
+          });
+          await db.inventoryItemLog.create({
+            data: {
+              itemId: ing.itemId,
+              type: 'OUT',
+              quantity: deduct,
+              note: `Đơn #${order.orderCode}`,
+              createdBy: 'system',
+            },
+          });
+        }
+      }
+    }
+
+    orderEvents.orderStatusChanged(branchId, updatedOrder);
+    return updatedOrder;
   },
 
-  async createPayment(branchId: string, orderId: string, data: { methodId: string; amount: number; referenceCode?: string }) {
-    const order = await prisma.order.findFirst({ where: { id: orderId, branchId } })
-    if (!order) throw new Error('Đơn hàng không tồn tại')
+  async createPayment(
+    branchId: string,
+    orderId: string,
+    data: { methodId: string; amount: number; referenceCode?: string },
+  ) {
+    const order = await prisma.order.findFirst({ where: { id: orderId, branchId } });
+    if (!order) throw new Error('Đơn hàng không tồn tại');
 
     const payment = await prisma.payment.create({
       data: {
@@ -165,32 +206,32 @@ export const orderService = {
         referenceCode: data.referenceCode,
         paidAt: new Date(),
       },
-    })
+    });
 
     await prisma.order.update({
       where: { id: orderId },
       data: { status: 'COMPLETED', completedAt: new Date() },
-    })
+    });
 
     if (order.tableId) {
       await prisma.table.update({
         where: { id: order.tableId },
         data: { status: 'AVAILABLE' },
-      })
+      });
     }
 
-    orderEvents.orderPaid(branchId, { orderId, payment })
-    return payment
+    orderEvents.orderPaid(branchId, { orderId, payment });
+    return payment;
   },
 
   async cancelOrder(branchId: string, orderId: string) {
-    const order = await prisma.order.findFirst({ where: { id: orderId, branchId } })
-    if (!order) throw new Error('Đơn hàng không tồn tại')
-    if (order.status === 'COMPLETED') throw new Error('Không thể huỷ đơn đã hoàn thành')
+    const order = await prisma.order.findFirst({ where: { id: orderId, branchId } });
+    if (!order) throw new Error('Đơn hàng không tồn tại');
+    if (order.status === 'COMPLETED') throw new Error('Không thể huỷ đơn đã hoàn thành');
 
     return prisma.order.update({
       where: { id: orderId },
       data: { status: 'CANCELLED' },
-    })
+    });
   },
-}
+};

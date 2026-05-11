@@ -237,11 +237,12 @@ model Product {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  tenant        Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  category      Category?        @relation(fields: [categoryId], references: [id])
+  tenant        Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  category      Category?            @relation(fields: [categoryId], references: [id])
   variants      ProductVariant[]
   orderItems    OrderItem[]
   inventoryLogs InventoryLog[]
+  ingredients   ProductIngredient[]
 
   @@map("products")
 }
@@ -258,6 +259,23 @@ model ProductVariant {
   orderItems  OrderItem[]
 
   @@map("product_variants")
+}
+
+// ============================================================
+// PRODUCT INGREDIENTS (liên kết món ↔ nguyên liệu)
+// ============================================================
+
+model ProductIngredient {
+  id        String @id @default(uuid())
+  productId String
+  itemId    String
+  quantity  Float
+
+  product Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+  item    InventoryItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, itemId])
+  @@map("product_ingredients")
 }
 
 // ============================================================
@@ -458,8 +476,9 @@ model InventoryItem {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  branch  Branch             @relation(fields: [branchId], references: [id])
-  logs    InventoryItemLog[]
+  branch       Branch              @relation(fields: [branchId], references: [id])
+  logs         InventoryItemLog[]
+  ingredients  ProductIngredient[]
 
   @@map("inventory_items")
 }

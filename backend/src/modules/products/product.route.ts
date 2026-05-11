@@ -50,4 +50,35 @@ router.delete('/:id', productController.deleteProduct)
 // Variants của product
 router.post('/:productId/variants', productController.createVariant)
 
+// Nguyên liệu của sản phẩm
+router.get('/:productId/ingredients', async (req, res) => {
+  try {
+    const db = prisma as any
+    const data = await db.productIngredient.findMany({
+      where: { productId: req.params.productId },
+      include: { item: { select: { id: true, name: true, unit: true, quantity: true } } },
+    })
+    return res.json({ success: true, data })
+  } catch (e: any) {
+    return res.status(400).json({ success: false, message: e.message })
+  }
+})
+
+router.post('/:productId/ingredients', async (req, res) => {
+  try {
+    const db = prisma as any
+    const { productId } = req.params
+    const ingredients: { itemId: string; quantity: number }[] = req.body.ingredients || []
+    await db.productIngredient.deleteMany({ where: { productId } })
+    if (ingredients.length > 0) {
+      await db.productIngredient.createMany({
+        data: ingredients.map((i: any) => ({ productId, itemId: i.itemId, quantity: i.quantity })),
+      })
+    }
+    return res.json({ success: true })
+  } catch (e: any) {
+    return res.status(400).json({ success: false, message: e.message })
+  }
+})
+
 export default router
