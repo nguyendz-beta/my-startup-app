@@ -32,6 +32,7 @@ interface InventoryItem {
 interface Ingredient {
   id: string;
   itemId: string;
+  variantId: string | null;
   quantity: number;
   item: InventoryItem;
 }
@@ -81,6 +82,8 @@ export default function MenuPage() {
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
   const [savingIng, setSavingIng] = useState(false);
+  // null = áp dụng chung, variantId = theo size cụ thể
+  const [activeVariantTab, setActiveVariantTab] = useState<string | null>(null);
   const [newIng, setNewIng] = useState({ itemId: '', quantity: '' });
   const [branchId, setBranchId] = useState('');
 
@@ -148,6 +151,7 @@ export default function MenuPage() {
   const openIngredients = async (product: Product) => {
     setIngProduct(product);
     setShowIngredients(true);
+    setActiveVariantTab(null);
     try {
       const [ingRes, invRes] = await Promise.all([
         api.get(`/products/${product.id}/ingredients`),
@@ -161,12 +165,20 @@ export default function MenuPage() {
     }
   };
 
+  // Lọc nguyên liệu theo tab đang chọn
+  const currentIngredients = ingredients.filter((i) =>
+    activeVariantTab === null ? i.variantId === null : i.variantId === activeVariantTab,
+  );
+
   const addIngredient = () => {
     if (!newIng.itemId || !newIng.quantity) return;
     const item = inventoryItems.find((i) => i.id === newIng.itemId);
     if (!item) return;
-    if (ingredients.find((i) => i.itemId === newIng.itemId)) {
-      toast.error('Nguyên liệu này đã được thêm');
+    const dup = ingredients.find(
+      (i) => i.itemId === newIng.itemId && i.variantId === activeVariantTab,
+    );
+    if (dup) {
+      toast.error('Nguyên liệu này đã được thêm cho size này');
       return;
     }
     setIngredients((prev) => [
@@ -174,6 +186,7 @@ export default function MenuPage() {
       {
         id: '',
         itemId: newIng.itemId,
+        variantId: activeVariantTab,
         quantity: parseFloat(newIng.quantity),
         item,
       },
@@ -181,8 +194,10 @@ export default function MenuPage() {
     setNewIng({ itemId: '', quantity: '' });
   };
 
-  const removeIngredient = (itemId: string) => {
-    setIngredients((prev) => prev.filter((i) => i.itemId !== itemId));
+  const removeIngredient = (itemId: string, variantId: string | null) => {
+    setIngredients((prev) =>
+      prev.filter((i) => !(i.itemId === itemId && i.variantId === variantId)),
+    );
   };
 
   const saveIngredients = async () => {
@@ -190,7 +205,11 @@ export default function MenuPage() {
     setSavingIng(true);
     try {
       await api.post(`/products/${ingProduct.id}/ingredients`, {
-        ingredients: ingredients.map((i) => ({ itemId: i.itemId, quantity: i.quantity })),
+        ingredients: ingredients.map((i) => ({
+          itemId: i.itemId,
+          variantId: i.variantId,
+          quantity: i.quantity,
+        })),
       });
       toast.success('Lưu nguyên liệu thành công!');
       setShowIngredients(false);
@@ -664,20 +683,51 @@ export default function MenuPage() {
               </button>
             </div>
 
-            {/* Danh sách nguyên liệu hiện tại */}
-            <div className="space-y-2 mb-4 max-h-48 overflow-auto">
-              {ingredients.length === 0 ? (
+            {/* Tabs: Chung + từng size */}
+            <div className="flex gap-1 flex-wrap mb-4">
+              <button
+                onClick={() => {
+                  setActiveVariantTab(null);
+                  setNewIng({ itemId: '', quantity: '' });
+                }}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${activeVariantTab === null ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+              >
+                🌐 Chung (tất cả size)
+              </button>
+              {ingProduct.variants.map((v) => (
+                <button
+                  key={v.id}
+                  onClick={() => {
+                    setActiveVariantTab(v.id);
+                    setNewIng({ itemId: '', quantity: '' });
+                  }}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${activeVariantTab === v.id ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                >
+                  {v.name}
+                </button>
+              ))}
+            </div>
+
+            <p className="text-xs text-gray-400 mb-3">
+              {activeVariantTab === null
+                ? '💡 Nguyên liệu chung áp dụng cho tất cả size. Nếu size có nguyên liệu riêng, hệ thống dùng nguyên liệu của size đó.'
+                : `💡 Nguyên liệu riêng cho size "${ingProduct.variants.find((v) => v.id === activeVariantTab)?.name}".`}
+            </p>
+
+            {/* Danh sách nguyên liệu theo tab */}
+            <div className="space-y-2 mb-4 max-h-44 overflow-auto">
+              {currentIngredients.length === 0 ? (
                 <p className="text-xs text-gray-400 text-center py-4">Chưa có nguyên liệu nào</p>
               ) : (
-                ingredients.map((ing) => (
+                currentIngredients.map((ing) => (
                   <div
-                    key={ing.itemId}
+                    key={`${ing.itemId}-${ing.variantId}`}
                     className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2"
                   >
                     <div>
                       <p className="text-sm font-medium text-gray-800">{ing.item.name}</p>
                       <p className="text-xs text-gray-400">
-                        Tồn kho: {ing.item.quantity} {ing.item.unit}
+                        Tồn: {ing.item.quantity} {ing.item.unit}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -687,7 +737,7 @@ export default function MenuPage() {
                         onChange={(e) =>
                           setIngredients((prev) =>
                             prev.map((i) =>
-                              i.itemId === ing.itemId
+                              i.itemId === ing.itemId && i.variantId === ing.variantId
                                 ? { ...i, quantity: parseFloat(e.target.value) || 0 }
                                 : i,
                             ),
@@ -697,7 +747,7 @@ export default function MenuPage() {
                       />
                       <span className="text-xs text-gray-400">{ing.item.unit}</span>
                       <button
-                        onClick={() => removeIngredient(ing.itemId)}
+                        onClick={() => removeIngredient(ing.itemId, ing.variantId)}
                         className="text-red-400 hover:text-red-600 text-sm"
                       >
                         ✕
@@ -708,7 +758,7 @@ export default function MenuPage() {
               )}
             </div>
 
-            {/* Thêm nguyên liệu mới */}
+            {/* Thêm nguyên liệu */}
             <div className="border border-gray-200 rounded-xl p-3 mb-4">
               <p className="text-xs font-medium text-gray-600 mb-2">Thêm nguyên liệu</p>
               <div className="flex gap-2">
@@ -719,7 +769,7 @@ export default function MenuPage() {
                 >
                   <option value="">-- Chọn nguyên liệu --</option>
                   {inventoryItems
-                    .filter((i) => !ingredients.find((ing) => ing.itemId === i.id))
+                    .filter((i) => !currentIngredients.find((ing) => ing.itemId === i.id))
                     .map((i) => (
                       <option key={i.id} value={i.id}>
                         {i.name} ({i.unit})
@@ -741,10 +791,6 @@ export default function MenuPage() {
                 </button>
               </div>
             </div>
-
-            <p className="text-xs text-gray-400 mb-3">
-              💡 Khi đơn hoàn thành, hệ thống tự động trừ số lượng nguyên liệu tương ứng.
-            </p>
 
             <button
               onClick={saveIngredients}
